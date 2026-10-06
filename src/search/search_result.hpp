@@ -1,5 +1,6 @@
 #pragma once
 #include "document.hpp"
+#include <string>
 
 namespace local_search {
 
