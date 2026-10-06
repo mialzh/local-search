@@ -9,7 +9,10 @@
 #include <unicode/normalizer2.h>
 #include <unicode/stringpiece.h>
 #include <unicode/unistr.h>
+#include <unicode/uchar.h>
+#include <unicode/utf8.h>
 
+namespace local_search {
 
 class TextProcessor {
 public:
@@ -19,3 +22,5 @@ public:
 
     std::vector<std::string> Process(std::string_view text) ;
 };
+
+} //local_search
