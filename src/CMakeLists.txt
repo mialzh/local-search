@@ -2,6 +2,7 @@ find_package(ICU REQUIRED COMPONENTS uc)
 
 add_library(search_core STATIC
     search/text_processor.cpp
+    search/inverted_index.cpp
 )
 target_include_directories(search_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}"

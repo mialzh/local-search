@@ -1,5 +1,6 @@
 #include <utility>
 #include <stdexcept>
+#include <limits>
 
 #include "inverted_index.hpp"
 
@@ -8,6 +9,12 @@ namespace local_search {
 void InvertedIndex::AddDocument(
     DocumentId id,
     const std::vector<std::string>& words) {
+        if (id == 0) {
+    throw std::runtime_error("Document id must be positive");
+}
+if (words.empty()) {
+    throw std::runtime_error("Document must contain at least one word");
+}
 
     if (document_lengths_.find(id) != document_lengths_.end()) {
         throw std::runtime_error("Document already indexed");

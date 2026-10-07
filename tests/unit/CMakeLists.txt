@@ -2,6 +2,7 @@ find_package(Catch2 3 CONFIG REQUIRED)
 
 add_executable(search_tests
     text_processor_test.cpp
+    inverted_index_test.cpp
 )
 target_link_libraries(search_tests PRIVATE
     search_core
@@ -18,3 +19,17 @@ endif()
 
 include(Catch)
 catch_discover_tests(search_tests DISCOVERY_MODE PRE_TEST)
+
+add_executable(inverted_index_allocation_tests
+    inverted_index_allocation_test.cpp
+)
+
+target_link_libraries(inverted_index_allocation_tests PRIVATE
+    search_core
+    Catch2::Catch2WithMain
+)
+
+catch_discover_tests(
+    inverted_index_allocation_tests
+    DISCOVERY_MODE PRE_TEST
+)
