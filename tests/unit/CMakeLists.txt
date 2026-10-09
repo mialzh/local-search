@@ -3,6 +3,7 @@ find_package(Catch2 3 CONFIG REQUIRED)
 add_executable(search_tests
     text_processor_test.cpp
     inverted_index_test.cpp
+    bm25_test.cpp
 )
 target_link_libraries(search_tests PRIVATE
     search_core
