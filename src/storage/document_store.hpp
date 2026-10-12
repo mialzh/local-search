@@ -13,6 +13,7 @@ public:
   void Save(const Document &document);
   Document Get(DocumentId id) const;
   std::vector<Document> LoadAll() const;
+  void Remove(DocumentId document_id);
 
 private:
   std::filesystem::path documents_dir_;

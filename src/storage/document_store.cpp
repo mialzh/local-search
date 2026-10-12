@@ -132,4 +132,15 @@ std::vector<Document> DocumentStore::LoadAll() const {
     throw StorageError(error.what());
   }
 }
+
+void DocumentStore::Remove(DocumentId document_id) {
+  auto filename = std::to_string(document_id) + ".json";
+  auto file_path = documents_dir_ / filename;
+  try {
+  std::error_code ignored;
+  std::filesystem::remove(file_path, ignored);
+  } catch (...) {
+    throw std::runtime_error("Couldn't remove file");
+  }
+}
 } // namespace local_search
