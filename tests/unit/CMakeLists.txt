@@ -5,6 +5,7 @@ add_executable(search_tests
     inverted_index_test.cpp
     bm25_test.cpp
     document_store_test.cpp
+    search_engine_test.cpp
 )
 target_link_libraries(search_tests PRIVATE
     search_core
