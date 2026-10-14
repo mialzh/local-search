@@ -37,6 +37,16 @@ class Checks:
         self.base_url = base_url
         self.count = 0
 
+    def static(self, path, content_type, expected):
+        with urllib.request.urlopen(self.base_url + path, timeout=10) as response:
+            body = response.read()
+            assert response.status == 200, (path, response.status)
+            assert response.headers.get("Content-Type", "").startswith(content_type), (
+                path, response.headers
+            )
+            assert body == expected, path
+        self.count += 1
+
     def request(self, path, status, *, data=None, content_type=None, error=None):
         headers = {}
         if content_type:
@@ -84,6 +94,7 @@ def main():
     args = parser.parse_args()
     binary = Path(args.binary).resolve()
     source_config = Path(args.config).read_text(encoding="utf-8")
+    web_directory = Path(__file__).resolve().parents[2] / "web"
     if not binary.is_file():
         parser.error("Build the server first: " + str(binary))
 
@@ -106,6 +117,12 @@ def main():
             config, count=1,
         )
         assert replacements == 1, "No search-component data-dir found in YAML"
+        config, replacements = re.subn(
+            r"(?m)^([ \t]*dir:)[^\r\n]*$",
+            lambda match: match.group(1) + " " + json.dumps(str(web_directory)),
+            config, count=1,
+        )
+        assert replacements == 1, "No fs-cache-web dir found in YAML"
         config_path = directory / "config.yaml"
         config_path.write_text(config, encoding="utf-8")
 
@@ -146,6 +163,15 @@ def main():
 
             try:
                 start()
+                for path, filename, content_type in [
+                    ("/", "index.html", "text/html"),
+                    ("/index.html", "index.html", "text/html"),
+                    ("/styles.css", "styles.css", "text/css"),
+                    ("/app.mjs", "app.mjs", "application/javascript"),
+                    ("/api.mjs", "api.mjs", "application/javascript"),
+                    ("/favicon.svg", "favicon.svg", "image/svg+xml"),
+                ]:
+                    checks.static(path, content_type, (web_directory / filename).read_bytes())
                 assert checks.search("missing") == {"results": []}
                 text = "Умные указатели управляют памятью."
                 first = checks.upload([

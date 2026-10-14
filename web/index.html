@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f7f8fa">
+    <meta name="description" content="Поиск по собственным текстовым документам. Загрузи файлы и найди нужное за пару слов.">
+    <title>Local Search — поиск по твоим документам</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/app.mjs"></script>
+  </head>
+  <body>
+    <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></symbol>
+      <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M6 6a8 8 0 0 1 13 3M18 18A8 8 0 0 1 5 15"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    </svg>
+    <a class="skip-link" href="#query">К поиску</a>
+    <header class="header">
+      <a class="brand" href="/" aria-label="Local Search, главная"><span class="brand-mark"><svg class="icon"><use href="#i-search"/></svg></span><span>local<span class="brand-slash">/</span>search<span class="version">v1</span></span></a>
+      <div class="header-right"><button class="connection" id="connection" type="button" title="Проверить соединение с сервером"><span class="status-dot"></span><span id="connection-label" role="status">Подключаемся</span><svg class="icon small"><use href="#i-refresh"/></svg></button></div>
+    </header>
+
+    <main class="workspace">
+      <section class="search-workspace" aria-labelledby="page-title">
+        <h1 class="sr-only" id="page-title">Поиск по документам</h1>
+
+        <form id="search-form" class="search-form">
+          <div class="search-bar"><svg class="icon search-icon"><use href="#i-search"/></svg><label class="sr-only" for="query">Поисковый запрос</label><input id="query" name="q" type="search" placeholder="Что хочешь найти?" autocomplete="off" required aria-describedby="search-hint" enterkeyhint="search"><kbd class="keyboard-hint">/</kbd><button class="search-submit" id="search-button" type="submit"><span>Найти</span><svg class="icon small"><use href="#i-arrow"/></svg></button></div>
+          <div class="search-options"><p id="search-hint">По словам, на русском и английском</p><label for="limit">Показывать <select id="limit" name="limit"><option value="5">5</option><option value="10" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option></select></label></div>
+        </form>
+        <div id="search-error" class="notice error" role="alert" hidden></div>
+        <div id="connection-notice" class="notice" hidden>Сервер недоступен. Убедись, что он запущен, и нажми на индикатор соединения вверху.</div>
+
+        <section class="results-section" aria-labelledby="results-title" aria-busy="false" id="results-section">
+          <div class="section-heading"><h2 id="results-title">Результаты поиска</h2><span id="results-meta" class="subtle"></span></div>
+          <div id="results-status" class="sr-only" role="status" aria-live="polite"></div>
+          <div id="results" class="results">
+            <div class="empty-state welcome" id="welcome">
+              <div class="paper-stack" aria-hidden="true"><div class="paper paper-back"></div><div class="paper paper-front"><span></span><span></span><span></span><div class="paper-search"><svg class="icon"><use href="#i-search"/></svg></div></div></div>
+              <h3>Добавь документ для поиска</h3>
+              <p>Загрузи первый документ справа,<br>а потом введи слова из его текста.</p>
+              <button class="text-button" id="first-upload" type="button">Добавить документ <svg class="icon small"><use href="#i-arrow"/></svg></button>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <aside class="library-panel" aria-labelledby="library-title">
+        <div class="panel-heading"><span class="panel-icon"><svg class="icon"><use href="#i-file"/></svg></span><div><h2 id="library-title">Твои документы</h2><p>Добавь их в поисковый индекс</p></div></div>
+        <div class="drop-zone" id="drop-zone"><div class="upload-icon"><svg class="icon"><use href="#i-upload"/></svg></div><h3>Перетащи файлы сюда</h3><p>или выбери их на компьютере</p><button class="upload-button" id="choose-files" type="button">Выбрать файлы <span>+</span></button><input id="file-input" class="sr-only" type="file" accept=".txt,text/plain" multiple tabindex="-1" aria-label="Выбрать текстовые документы"><span class="file-limits">.txt · UTF-8 · до 5 МБ на файл</span></div>
+        <p class="upload-hint">Можно добавить несколько файлов.<br>После загрузки они сразу доступны в поиске.</p>
+        <div id="upload-live" class="sr-only" role="status" aria-live="polite"></div>
+        <div class="uploads-heading"><h3>Загрузки этой сессии</h3><span class="count" id="upload-count">0</span></div>
+        <ul id="uploads" class="uploads" aria-label="Статус загрузки документов"></ul>
+        <p id="no-uploads" class="no-uploads">Здесь появятся загруженные файлы</p>
+        <div class="storage-note"><span class="storage-dot"></span><p>Документы сохраняются на сервере.<br>После перезапуска поиск продолжит работать.</p></div>
+      </aside>
+    </main>
+
+    <noscript><p class="noscript">Для загрузки документов и поиска включи JavaScript в браузере.</p></noscript>
+  </body>
+</html>

@@ -45,3 +45,25 @@ components_manager:
             max_request_size: 6356992
             max_headers_size: 65536
             request_body_size_log_limit: 0
+
+        # Run the server from the repository root. Only web/ is public.
+        fs-cache-web:
+            dir: ./web
+            update-period: 1s
+            fs-task-processor: fs-task-processor
+
+        handler-static:
+            path: /*
+            method: GET
+            task_processor: main-task-processor
+            fs-cache-component: fs-cache-web
+            directory-file: index.html
+            expires: 0
+
+        dynamic-config:
+            defaults:
+                USERVER_FILES_CONTENT_TYPE_MAP:
+                    .html: "text/html; charset=utf-8"
+                    .css: "text/css; charset=utf-8"
+                    .mjs: "application/javascript; charset=utf-8"
+                    .svg: "image/svg+xml"
