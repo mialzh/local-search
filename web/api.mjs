@@ -72,7 +72,7 @@ async function request(path, { timeout = 15000, signal, ...options } = {}) {
       body = await response.json();
     } catch (error) {
       if (controller.signal.aborted) throw error;
-      throw new ApiError("Сервер вернул неожиданный ответ. Проверь, что открыта страница Local Search.", {
+      throw new ApiError("Сервер вернул неожиданный ответ. Проверь, что открыта страница jdanoff search.", {
         status: response.status,
       });
     }
@@ -139,3 +139,4 @@ export async function checkHealth() {
 export function queryWords(query) {
   return new Set(query.normalize("NFC").toLowerCase().match(/[\p{L}\p{Nd}][\p{L}\p{Nd}\p{M}]*/gu) ?? []);
 }
+

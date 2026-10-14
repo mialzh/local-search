@@ -1,4 +1,5 @@
-import { ApiError, checkHealth, queryWords, searchDocuments, uploadDocument } from "./api.mjs";
+import { ApiError, checkHealth, queryWords, searchDocuments, uploadDocument } from "./api.mjs?v=minimal-3";
+import { openUploadDialog } from "./workspace.mjs?v=minimal-3";
 
 const $ = (id) => document.getElementById(id);
 const query = $("query");
@@ -7,16 +8,16 @@ const results = $("results");
 const input = $("file-input");
 const dropZone = $("drop-zone");
 const number = new Intl.NumberFormat("ru-RU");
-const scoreFormat = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 4 });
-const plural = new Intl.PluralRules("ru-RU");
 let searchController;
 let searchVersion = 0;
 let lastQuery = null;
 let healthPending = false;
 let connectionVersion = 0;
 let uploadRunning = false;
-let uploadedCount = 0;
-let nextUploadId = 0;
+let batchTotal = 0;
+let batchProcessed = 0;
+let batchAdded = 0;
+let uploadLabelTimer;
 const uploadQueue = [];
 
 function icon(name, extraClass = "") {
@@ -43,6 +44,7 @@ function setConnection(status) {
     online: "Сервер подключён", offline: "Нет соединения", checking: "Проверяем",
   }[status];
   $("connection-notice").hidden = status !== "offline";
+  $("connection").title = $("connection-label").textContent + ". Нажми, чтобы проверить соединение.";
 }
 
 async function refreshConnection() {
@@ -89,12 +91,10 @@ function showResults(items, text, milliseconds) {
     fileIcon.append(icon("file"));
     const content = element("div", "result-content");
     const top = element("div", "result-top");
-    const score = element("span", "result-score", `BM25 ${scoreFormat.format(item.score)}`);
-    score.title = "Оценка соответствия запросу. Это не процент уверенности.";
-    top.append(element("h3", "result-title", item.title), score);
+    top.append(element("h3", "result-title", item.title));
     const snippet = element("p", "result-snippet");
     appendSnippet(snippet, item.snippet, words);
-    content.append(top, snippet, element("span", "result-id", `ДОКУМЕНТ #${item.document_id}`));
+    content.append(top, snippet);
     article.append(fileIcon, content);
     results.append(article);
   }
@@ -147,69 +147,70 @@ async function runSearch() {
   }
 }
 
-function setUploadState(entry, state, message) {
-  entry.node.dataset.state = state;
-  entry.status.textContent = message;
-  entry.indicator.replaceChildren();
-  if (state === "done") entry.indicator.append(icon("check", "upload-indicator"));
-  if (state === "uploading") entry.indicator.append(element("span", "spinner"));
-}
-
 async function drainUploads() {
   if (uploadRunning) return;
   uploadRunning = true;
   let added = false;
+  clearTimeout(uploadLabelTimer);
+  $("open-upload").setAttribute("aria-busy", "true");
   try {
     while (uploadQueue.length) {
-      const entry = uploadQueue.shift();
-      setUploadState(entry, "uploading", "Загружаем и индексируем…");
+      const file = uploadQueue.shift();
+      $("upload-summary").textContent = `Загрузка ${batchProcessed + 1} из ${batchTotal}`;
+      $("upload-button-label").textContent = `Загрузка ${batchProcessed + 1}/${batchTotal}`;
+      $("upload-detail").textContent = file.name;
+      $("upload-progress").max = batchTotal;
       try {
-        const response = await uploadDocument(entry.file);
+        await uploadDocument(file);
         setConnection("online");
-        const wordLabel = { one: "слово", few: "слова", many: "слов", other: "слова" }[plural.select(response.word_count)];
-        setUploadState(entry, "done", `${number.format(response.word_count)} ${wordLabel} · ID ${response.document_id} · в поиске`);
-        entry.name.textContent = response.title;
-        $("upload-count").textContent = number.format(++uploadedCount);
-        $("upload-live").textContent = `Документ ${response.title} загружен и доступен в поиске.`;
+        batchAdded++;
         added = true;
         const welcome = $("welcome");
         if (welcome) {
-          welcome.querySelector("h3").textContent = "Первый шаг сделан";
-          welcome.querySelector("p").textContent = "Введи слова из текста документа в строку поиска выше.";
-          $("first-upload").hidden = true;
+          welcome.querySelector("h3").textContent = "Документы добавлены";
+          welcome.querySelector("p").textContent = "Введи слова из текста в строку поиска.";
         }
       } catch (error) {
         if (error.network) setConnection("offline");
         else if (error.status) setConnection("online");
-        const message = error instanceof ApiError ? error.message : "Не удалось прочитать или загрузить файл.";
-        setUploadState(entry, "error", error.network
-          ? `${message} Ответ на загрузку не получен: проверь документ через поиск перед повторной отправкой.` : message);
-        $("upload-live").textContent = `Не удалось загрузить ${entry.file.name}. ${message}`;
+        let message = error instanceof ApiError ? error.message : "Не удалось прочитать или загрузить файл.";
+        if (error.network) message += " Ответ не получен: проверь документ через поиск перед повторной отправкой.";
+        $("upload-errors").append(element("p", "", `${file.name}: ${message}`));
+        $("upload-errors").hidden = false;
       } finally {
-        // Keep only displayed metadata after processing, not the file contents.
-        entry.file = null;
+        batchProcessed++;
+        $("upload-progress").value = batchProcessed;
       }
     }
   } finally {
     uploadRunning = false;
+    $("open-upload").removeAttribute("aria-busy");
+    $("upload-summary").textContent = `Добавлено: ${batchAdded} из ${batchTotal}`;
+    $("upload-detail").textContent = batchAdded === batchTotal
+      ? "Документы доступны в поиске." : "Проверь файлы с ошибками ниже.";
+    $("upload-button-label").textContent = batchAdded > 0 ? `Добавлено: ${batchAdded}` : "Проверь файлы";
+    uploadLabelTimer = setTimeout(() => {
+      $("upload-button-label").textContent = "Добавить файлы";
+    }, 4000);
   }
   if (added && lastQuery !== null && query.value.trim() === lastQuery) await runSearch();
 }
 
 function queueFiles(files) {
-  for (const file of files) {
-    const node = element("li", "upload-item");
-    node.id = `upload-${++nextUploadId}`;
-    const description = element("div", "upload-description");
-    const name = element("p", "upload-name", file.name);
-    const status = element("p", "upload-status", "В очереди");
-    const indicator = element("span", "");
-    description.append(name, status);
-    node.append(icon("file"), description, indicator);
-    $("uploads").prepend(node);
-    uploadQueue.push({ file, node, name, status, indicator });
+  if (!files.length) return;
+  if (!uploadRunning) {
+    batchTotal = 0;
+    batchProcessed = 0;
+    batchAdded = 0;
+    $("upload-errors").replaceChildren();
+    $("upload-errors").hidden = true;
+    $("upload-progress").value = 0;
   }
-  $("no-uploads").hidden = $("uploads").children.length > 0;
+  batchTotal += files.length;
+  $("upload-progress").max = batchTotal;
+  uploadQueue.push(...files);
+  $("upload-feedback").hidden = false;
+  openUploadDialog();
   void drainUploads();
 }
 
@@ -221,7 +222,6 @@ limit.addEventListener("change", () => {
   if (lastQuery !== null && query.value.trim()) void runSearch();
 });
 $("choose-files").addEventListener("click", () => input.click());
-$("first-upload").addEventListener("click", () => input.click());
 input.addEventListener("change", () => {
   queueFiles(Array.from(input.files));
   input.value = "";
@@ -251,13 +251,6 @@ dropZone.addEventListener("drop", (event) => {
 // Dropping outside the target must not navigate the browser away from the app.
 document.addEventListener("dragover", (event) => event.preventDefault());
 document.addEventListener("drop", (event) => event.preventDefault());
-document.addEventListener("keydown", (event) => {
-  if (event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey &&
-      !event.target.closest("input, textarea, select, [contenteditable='true']")) {
-    event.preventDefault();
-    query.focus();
-  }
-});
 $("connection").addEventListener("click", () => void refreshConnection());
 window.addEventListener("online", () => void refreshConnection());
 window.addEventListener("offline", () => setConnection("offline"));
@@ -270,3 +263,4 @@ if (window.location.protocol === "file:") {
 } else {
   void refreshConnection();
 }
+
