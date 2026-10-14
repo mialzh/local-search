@@ -19,3 +19,19 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 elseif(MSVC)
     target_compile_options(search_core PRIVATE /W4 /utf-8)
 endif()
+
+if(BUILD_SERVER)
+    add_executable(local_search
+        main.cpp
+        http/health_handler.cpp
+    )
+
+    target_link_libraries(local_search PRIVATE
+        search_core
+        userver::core
+    )
+
+    set_target_properties(local_search PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+    )
+endif()

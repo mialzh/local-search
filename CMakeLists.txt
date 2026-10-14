@@ -5,7 +5,13 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+option(BUILD_SERVER "Build the HTTP server" OFF)
+
 find_package(nlohmann_json CONFIG REQUIRED)
+
+if(BUILD_SERVER)
+    find_package(userver COMPONENTS core REQUIRED)
+endif()
 
 include(CTest)
 add_subdirectory(src)

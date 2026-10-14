@@ -1,5 +1,6 @@
 #include "text_processor.hpp"
 #include "errors.hpp"
+#include <limits>
 
 namespace local_search {
 

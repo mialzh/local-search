@@ -1,0 +1,27 @@
+components_manager:
+    task_processors:
+        main-task-processor:
+            worker_threads: 4
+
+        fs-task-processor:
+            worker_threads: 2
+
+    default_task_processor: main-task-processor
+
+    components:
+        server:
+            listener:
+                address: 0.0.0.0
+                port: 8080
+
+        logging:
+            loggers:
+                default:
+                    file_path: '@stderr'
+                    level: info
+                    overflow_behavior: discard
+
+        handler-health:
+            path: /health
+            method: GET
+            task_processor: main-task-processor
