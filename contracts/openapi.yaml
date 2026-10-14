@@ -1,0 +1,276 @@
+openapi: 3.0.3
+
+info:
+  title: Local Search API
+  version: 1.0.0
+  description: Загрузка текстовых документов и поиск по ним с помощью BM25.
+
+servers:
+  - url: http://127.0.0.1:8080
+    description: Локальный сервер
+
+tags:
+  - name: Health
+  - name: Documents
+  - name: Search
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Проверить доступность сервера
+      responses:
+        '200':
+          description: Сервер работает
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "ok\n"
+
+  /documents:
+    post:
+      tags: [Documents]
+      operationId: uploadDocument
+      summary: Загрузить текстовый документ
+      description: |
+        Принимается ровно одна часть-файл с именем file.
+        Дополнительные и повторные multipart-части запрещены.
+        После успешного ответа документ сохранён и доступен для поиска.
+        Повторная загрузка создаёт новый документ с новым ID.
+      requestBody:
+        required: true
+        description: |
+          Файл: от 1 до 5242880 байт (5 MiB) включительно.
+          Всё HTTP-тело вместе с multipart-разметкой: до 6291456 байт (6 MiB).
+          Имя файла должно оканчиваться на .txt без учёта ASCII-регистра.
+          Название документа — последний компонент имени файла:
+          непустой валидный UTF-8, без U+0000, до 255 байт.
+          Текст должен быть валидным UTF-8, без U+0000 и содержать хотя бы один токен.
+          Начальный UTF-8 BOM допускается и удаляется; размер проверяется до его удаления.
+          MIME-тип части не заменяет проверку расширения и содержимого.
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Текстовый файл .txt в кодировке UTF-8
+      responses:
+        '201':
+          description: Документ сохранён и проиндексирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddedDocument'
+              example:
+                document_id: 1
+                title: pointers.txt
+                word_count: 4
+        '400':
+          description: |
+            InvalidRequest — некорректный multipart, отсутствующий файл,
+            лишние части или неверное название.
+            InvalidText — пустой текст, отсутствие токенов, неверный UTF-8 или U+0000.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/DocumentTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedFileType'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /search:
+    get:
+      tags: [Search]
+      operationId: searchDocuments
+      summary: Найти документы
+      description: |
+        Результаты отсортированы по убыванию score.
+        При одинаковом score первым идёт меньший document_id.
+        Отсутствие совпадений — успешный ответ с пустым массивом results.
+        Повторения одного слова в запросе не увеличивают его вклад в score.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: |
+            Один поисковый запрос, до 2048 байт после URL-декодирования.
+            Требуется валидный UTF-8 без U+0000 и хотя бы один токен.
+            Повторный параметр q запрещён.
+          schema:
+            type: string
+            minLength: 1
+          example: умные указатели
+        - name: limit
+          in: query
+          required: false
+          description: |
+            Максимальное количество результатов.
+            Десятичное целое от 1 до 100 без знака и пробелов.
+            Повторный параметр limit запрещён.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: Поиск выполнен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+              examples:
+                empty:
+                  summary: Совпадений нет
+                  value:
+                    results: []
+                found:
+                  summary: Найден документ
+                  value:
+                    results:
+                      - document_id: 1
+                        title: pointers.txt
+                        score: 0.575364
+                        snippet: Умные указатели управляют памятью.
+        '400':
+          description: |
+            InvalidQuery — отсутствующий или повторный q, неверный текст,
+            отсутствие токенов или превышение лимита запроса.
+            InvalidLimit — неверное значение или повторный limit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                error:
+                  code: InvalidQuery
+                  message: Query must contain at least one word
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  schemas:
+    DocumentId:
+      type: integer
+      minimum: 1
+      maximum: 18446744073709551615
+      description: Положительный идентификатор документа, uint64
+      example: 1
+
+    AddedDocument:
+      type: object
+      additionalProperties: false
+      required: [document_id, title, word_count]
+      properties:
+        document_id:
+          $ref: '#/components/schemas/DocumentId'
+        title:
+          type: string
+          minLength: 1
+          description: Название документа, валидный UTF-8 без U+0000, до 255 байт
+          example: pointers.txt
+        word_count:
+          type: integer
+          minimum: 1
+          description: Количество токенов документа
+          example: 4
+
+    SearchResponse:
+      type: object
+      additionalProperties: false
+      required: [results]
+      properties:
+        results:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SearchResult'
+
+    SearchResult:
+      type: object
+      additionalProperties: false
+      required: [document_id, title, score, snippet]
+      properties:
+        document_id:
+          $ref: '#/components/schemas/DocumentId'
+        title:
+          type: string
+          minLength: 1
+          description: Название документа, до 255 байт UTF-8
+        score:
+          type: number
+          format: double
+          minimum: 0
+          description: Оценка BM25; не вероятность и не процент уверенности
+        snippet:
+          type: string
+          maxLength: 200
+          description: Начало исходного текста, до 200 Unicode code points, без многоточия
+
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - InvalidRequest
+                - InvalidText
+                - InvalidQuery
+                - InvalidLimit
+                - DocumentTooLarge
+                - UnsupportedFileType
+                - InternalError
+            message:
+              type: string
+              description: Пояснение ошибки; для программной обработки использовать code
+
+  responses:
+    DocumentTooLarge:
+      description: Превышен лимит файла 5 MiB или HTTP-тела 6 MiB
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error:
+              code: DocumentTooLarge
+              message: Document is too large
+
+    UnsupportedFileType:
+      description: Расширение файла отличается от .txt без учёта ASCII-регистра
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error:
+              code: UnsupportedFileType
+              message: Only .txt files are supported
+
+    InternalError:
+      description: Ошибка хранилища или внутренняя ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error:
+              code: InternalError
+              message: Internal server error
