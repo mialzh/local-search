@@ -24,6 +24,10 @@ if(BUILD_SERVER)
     add_executable(local_search
         main.cpp
         http/health_handler.cpp
+        components/search_component.cpp
+        http/api_error.cpp
+        http/search_handler.cpp
+        http/upload_handler.cpp
     )
 
     target_link_libraries(local_search PRIVATE

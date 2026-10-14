@@ -25,3 +25,23 @@ components_manager:
             path: /health
             method: GET
             task_processor: main-task-processor
+
+        search-component:
+            data-dir: ./data
+            fs-task-processor: fs-task-processor
+
+        handler-search:
+            path: /search
+            method: GET
+            task_processor: main-task-processor
+            request_body_size_log_limit: 0
+
+        handler-upload:
+            path: /documents
+            method: POST
+            task_processor: main-task-processor
+            # userver limits the entire request, including headers.
+            # Allow up to 6 MiB of body plus at most 64 KiB of headers.
+            max_request_size: 6356992
+            max_headers_size: 65536
+            request_body_size_log_limit: 0
