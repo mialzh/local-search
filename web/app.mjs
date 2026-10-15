@@ -1,5 +1,5 @@
-import { ApiError, checkHealth, queryWords, searchDocuments, uploadDocument } from "./api.mjs?v=minimal-4";
-import { openUploadDialog } from "./workspace.mjs?v=minimal-4";
+import { ApiError, checkHealth, queryWords, searchDocuments, uploadDocument } from "./api.mjs?v=minimal-8";
+import { openUploadDialog } from "./workspace.mjs?v=minimal-8";
 
 const $ = (id) => document.getElementById(id);
 const query = $("query");
@@ -107,8 +107,25 @@ function showResults(items, text, milliseconds) {
   }
 }
 
+function clearQueryFeedback() {
+  query.removeAttribute("aria-invalid");
+  $("search-form").classList.remove("query-empty");
+}
+
 async function runSearch() {
   const text = query.value.trim();
+  if (!text) {
+    query.focus();
+    query.setAttribute("aria-invalid", "true");
+    const form = $("search-form");
+    form.classList.remove("query-empty");
+    // Replay only the border and glow; all dimensions stay unchanged.
+    void form.offsetWidth;
+    form.classList.add("query-empty");
+    $("results-status").textContent = "Введи запрос для поиска.";
+    return;
+  }
+  clearQueryFeedback();
   searchController?.abort();
   const controller = new AbortController();
   searchController = controller;
@@ -214,6 +231,11 @@ function queueFiles(files) {
   void drainUploads();
 }
 
+query.addEventListener("input", clearQueryFeedback);
+query.addEventListener("blur", clearQueryFeedback);
+query.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") clearQueryFeedback();
+});
 $("search-form").addEventListener("submit", (event) => {
   event.preventDefault();
   void runSearch();
