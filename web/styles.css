@@ -210,3 +210,22 @@ body.compact .result-snippet { font-size: 12px; line-height: 1.65; margin-top: 5
 .theme-toggle { display: grid; place-items: center; width: 29px; height: 29px; padding: 6px; border: 0; border-radius: 50%; background: transparent; color: var(--secondary); }
 .theme-toggle:hover { background: var(--hover); }
 .theme-toggle .icon { width: 16px; height: 16px; }
+
+/* The full wordmark always reserves its width, so the header stays still. */
+.brand { display: inline-flex; align-items: baseline; flex-shrink: 0; line-height: 1.4; }
+.brand-initial { position: relative; display: inline-block; font-weight: 700; transform-origin: 50% 80%; }
+.brand-mask { display: inline-block; overflow: hidden; }
+.brand-tail { display: inline-block; opacity: 1; transform: none; filter: none; clip-path: inset(-20% -1% -20% 0); }
+.brand-search { color: var(--secondary); font-weight: 400; }
+.brand-animate .brand-initial { animation: brand-seed 1050ms cubic-bezier(.22,1,.36,1) both; }
+.brand-animate .brand-tail { animation: brand-reveal 900ms cubic-bezier(.22,1,.36,1) 300ms both; }
+@keyframes brand-seed {
+  0% { opacity: 0; transform: translateY(2px) scale(.9); }
+  20% { opacity: 1; transform: translateY(0) scale(1.3); }
+  64%, 100% { opacity: 1; transform: none; }
+}
+@keyframes brand-reveal {
+  0% { opacity: 0; transform: translateX(-.7em); filter: blur(3px); clip-path: inset(-20% 100% -20% 0); }
+  45% { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: translateX(0); filter: blur(0); clip-path: inset(-20% -1% -20% 0); }
+}

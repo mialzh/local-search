@@ -1,5 +1,5 @@
-import { ApiError, checkHealth, queryWords, searchDocuments, uploadDocument } from "./api.mjs?v=minimal-3";
-import { openUploadDialog } from "./workspace.mjs?v=minimal-3";
+import { ApiError, checkHealth, queryWords, searchDocuments, uploadDocument } from "./api.mjs?v=minimal-4";
+import { openUploadDialog } from "./workspace.mjs?v=minimal-4";
 
 const $ = (id) => document.getElementById(id);
 const query = $("query");

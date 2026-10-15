@@ -53,3 +53,13 @@ $("theme-toggle").addEventListener("click", () => {
   setTheme(theme);
   try { localStorage.setItem("jdanoff-search.theme.v1", theme); } catch { /* The toggle also works without browser storage. */ }
 });
+
+const brand = $("brand");
+function replayBrand() {
+  brand.classList.remove("brand-animate");
+  // Restart the two short CSS animations without changing the link's width.
+  void brand.offsetWidth;
+  brand.classList.add("brand-animate");
+}
+brand.addEventListener("pointerenter", replayBrand);
+brand.addEventListener("focus", replayBrand);
