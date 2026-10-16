@@ -2,6 +2,8 @@
 
 #include "errors.hpp"
 
+#include <cstddef>
+#include <string_view>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -14,13 +16,26 @@
 
 namespace local_search {
 
+struct Occurrence {
+  std::size_t position;
+  std::size_t begin_byte;
+  std::size_t end_byte;
+};
+
+struct Token {
+  std::string word;
+  Occurrence occurrence;
+};
+
 class TextProcessor {
 public:
-    static icu::UnicodeString Normalize(std::string& text);
+   static icu::UnicodeString Normalize(std::string_view text);
 
-    static std::vector<std::string> Split(icu::UnicodeString& text);
+    static size_t Split(icu::UnicodeString &text);
 
-    static std::vector<std::string> Process(std::string_view text) ;
+    static std::vector<Token> SplitToTokens(std::string_view text);
+
+    static std::vector<Token> Process(std::string_view text) ;
 };
 
 } //local_search

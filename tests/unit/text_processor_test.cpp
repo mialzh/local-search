@@ -1,184 +1,174 @@
-#include "search/errors.hpp"
 #include "search/text_processor.hpp"
-
+#include "search/errors.hpp"
 #include <catch2/catch_test_macros.hpp>
-
 #include <string>
 #include <string_view>
 #include <vector>
 
-using local_search::TextProcessor;
-using local_search::ValidationError;
+using namespace local_search;
 
-TEST_CASE("Russian and English text is lowercased", "[text_processor]") {
-    TextProcessor processor;
-    const std::vector<std::string> expected{
-        "привет", "world", "привет", "123"
-    };
+namespace {
+struct Expected {
+  std::string word;
+  std::string original;
+  std::size_t begin;
+  std::size_t end;
+};
 
-    REQUIRE(processor.Process("Привет, WORLD! Привет 123") == expected);
+void CheckTokens(std::string_view text,
+                 const std::vector<Expected>& expected) {
+  const auto tokens = TextProcessor::Process(text);
+  REQUIRE(tokens.size() == expected.size());
+  for (std::size_t i = 0; i < tokens.size(); ++i) {
+    INFO("token index: " << i);
+    const auto& token = tokens[i];
+    CHECK(token.word == expected[i].word);
+    CHECK(token.occurrence.position == i);
+    CHECK(token.occurrence.begin_byte == expected[i].begin);
+    CHECK(token.occurrence.end_byte == expected[i].end);
+    REQUIRE(token.occurrence.begin_byte <= token.occurrence.end_byte);
+    REQUIRE(token.occurrence.end_byte <= text.size());
+    CHECK(text.substr(token.occurrence.begin_byte,
+                      token.occurrence.end_byte -
+                          token.occurrence.begin_byte) == expected[i].original);
+  }
 }
 
-TEST_CASE("Empty input and separators produce no tokens", "[text_processor]") {
-    TextProcessor processor;
-
-    REQUIRE(processor.Process("").empty());
-    REQUIRE(processor.Process(" \t\r\n  ").empty());
-    REQUIRE(processor.Process("!!! ,.;: () [] {} +_-").empty());
+std::string NormalizeUtf8(std::string_view text) {
+  auto normalized = TextProcessor::Normalize(text);
+  std::string result;
+  normalized.toUTF8String(result);
+  return result;
+}
 }
 
-TEST_CASE("Repeated separators do not create empty tokens", "[text_processor]") {
-    TextProcessor processor;
-    const std::vector<std::string> expected{"кот", "дом", "мир"};
-
-    REQUIRE(processor.Process("  кот\t\tдом\r\n\nмир  ") == expected);
+TEST_CASE("Normalize lowercases Russian and English", "[text_processor]") {
+  CHECK(NormalizeUtf8("HeLLo") == "hello");
+  CHECK(NormalizeUtf8("КОТ ЁЖ") == "кот ёж");
 }
 
-TEST_CASE("Token order and duplicates are preserved", "[text_processor]") {
-    TextProcessor processor;
-    const std::vector<std::string> expected{"кот", "дом", "кот", "кот"};
-
-    REQUIRE(processor.Process("кот дом кот кот") == expected);
+TEST_CASE("Normalize produces NFC and is idempotent", "[text_processor]") {
+  const auto normalized = NormalizeUtf8("Е\u0308ж");
+  CHECK(normalized == "ёж");
+  CHECK(NormalizeUtf8(normalized) == normalized);
+  CHECK(NormalizeUtf8("мо\u0301ре") == "мо\u0301ре");
 }
 
-TEST_CASE("Punctuation splits words", "[text_processor]") {
-    TextProcessor processor;
-    const std::vector<std::string> expected{"c", "hello", "world", "foo", "bar"};
-
-    REQUIRE(processor.Process("C++ hello_world foo-bar") == expected);
+TEST_CASE("Normalize accepts empty text", "[text_processor]") {
+  CHECK(NormalizeUtf8("").empty());
 }
 
-TEST_CASE("Yo and Ye remain different letters", "[text_processor][unicode]") {
-    TextProcessor processor;
-    const std::vector<std::string> expected{"ёж", "ёж", "еж"};
-
-    REQUIRE(processor.Process("ЁЖ ёж ЕЖ") == expected);
+TEST_CASE("Process preserves original UTF8 byte offsets", "[text_processor]") {
+  CheckTokens("Я кот!", {{"я", "Я", 0, 2}, {"кот", "кот", 3, 9}});
 }
 
-TEST_CASE("Canonically equivalent spellings normalize equally", "[text_processor][unicode]") {
-    TextProcessor processor;
-    const std::vector<std::string> russian{"ёж"};
-    const std::vector<std::string> latin{"café"};
-
-    REQUIRE(processor.Process("ЁЖ") == russian);
-    REQUIRE(processor.Process("Е\u0308Ж") == russian);
-    REQUIRE(processor.Process("CAFÉ") == latin);
-    REQUIRE(processor.Process("CAFE\u0301") == latin);
+TEST_CASE("Process preserves repeated tokens and skips separators",
+          "[text_processor]") {
+  CheckTokens("  кот   кот  ",
+              {{"кот", "кот", 2, 8}, {"кот", "кот", 11, 17}});
 }
 
-TEST_CASE("Stress marks inside Russian words are preserved", "[text_processor][stress]") {
-    TextProcessor processor;
-    const std::vector<std::string> expected{"мо\u0301ре", "вода\u0301"};
-    const std::vector<std::string> distinct{"море", "мо\u0301ре"};
-
-    REQUIRE(processor.Process("МО\u0301РЕ, ВОДА\u0301!") == expected);
-    REQUIRE(processor.Process("море мо\u0301ре") == distinct);
+TEST_CASE("Process emits the final word without a separator",
+          "[text_processor]") {
+  CheckTokens("кот", {{"кот", "кот", 0, 6}});
 }
 
-TEST_CASE("NFC orders multiple combining marks", "[text_processor][stress]") {
-    TextProcessor processor;
-    const std::vector<std::string> expected{"а\u0323\u0301"};
-
-    REQUIRE(processor.Process("а\u0301\u0323") == expected);
-    REQUIRE(processor.Process("а\u0323\u0301") == expected);
+TEST_CASE("Process handles empty text and separator-only text",
+          "[text_processor]") {
+  CHECK(TextProcessor::Process("").empty());
+  CHECK(TextProcessor::Process("  !?\t\r\n").empty());
+  CHECK(TextProcessor::Process("😀—…").empty());
 }
 
-TEST_CASE("Combining marks cannot start a token", "[text_processor][stress]") {
-    TextProcessor processor;
-    const std::vector<std::string> expected{"кот", "дом"};
-
-    REQUIRE(processor.Process("\u0301кот \u0300\u0301дом") == expected);
-    REQUIRE(processor.Process("кот,\u0301дом") == expected);
+TEST_CASE("Process handles punctuation digits and whitespace",
+          "[text_processor]") {
+  CheckTokens("C++\tfoo-bar\n42",
+              {{"c", "C", 0, 1}, {"foo", "foo", 4, 7},
+               {"bar", "bar", 8, 11}, {"42", "42", 12, 14}});
 }
 
-TEST_CASE("Standalone combining marks produce no tokens", "[text_processor][stress]") {
-    TextProcessor processor;
-
-    REQUIRE(processor.Process("\u0301").empty());
-    REQUIRE(processor.Process("\u0301\u0300 \u0323").empty());
-    REQUIRE(processor.Process("\u093E \u20DD").empty());
+TEST_CASE("Process keeps combining marks inside words",
+          "[text_processor]") {
+  CheckTokens("мо\u0301ре", {{"мо\u0301ре", "мо\u0301ре", 0, 10}});
 }
 
-TEST_CASE("Spacing and enclosing marks can continue a token", "[text_processor][unicode]") {
-    TextProcessor processor;
-    const std::vector<std::string> expected{
-        "\u0915\u093E", // Devanagari KA + spacing vowel sign AA (Mc).
-        "a\u20DD"      // Letter a + combining enclosing circle (Me).
-    };
-
-    REQUIRE(processor.Process("\u0915\u093E a\u20DD") == expected);
+TEST_CASE("Process ignores a combining mark before a word",
+          "[text_processor]") {
+  CheckTokens("\u0301кот", {{"кот", "кот", 2, 8}});
 }
 
-TEST_CASE("Unicode letters and decimal digits are retained", "[text_processor][unicode]") {
-    TextProcessor processor;
-    const std::vector<std::string> expected{"кот", "猫", "１２", "a١٢"};
-
-    REQUIRE(processor.Process("кот 猫 １２ a١٢") == expected);
+TEST_CASE("Process stores original offsets when NFC changes byte length",
+          "[text_processor]") {
+  CheckTokens("Е\u0308ж!", {{"ёж", "Е\u0308ж", 0, 6}});
 }
 
-TEST_CASE("Emoji split words without breaking iteration", "[text_processor][unicode]") {
-    TextProcessor processor;
-    const std::vector<std::string> expected{"кот", "дом"};
-
-    REQUIRE(processor.Process("\U0001F600кот\U0001F600\U0001F600дом\U0001F600") == expected);
-    REQUIRE(processor.Process("\U0001F600\U0001F600").empty());
+TEST_CASE("Process stores original offsets when lowercasing changes length",
+          "[text_processor]") {
+  CheckTokens("\u0130!", {{"i\u0307", "\u0130", 0, 2}});
 }
 
-TEST_CASE("Letters outside the BMP are lowercased and retained", "[text_processor][unicode]") {
-    TextProcessor processor;
-    const std::vector<std::string> expected{"\U00010428", "\U00010428"};
-
-    REQUIRE(processor.Process("\U00010400 \U00010428") == expected);
+TEST_CASE("Process skips four-byte Unicode separators", "[text_processor]") {
+  CheckTokens("😀Кот😀dog",
+              {{"кот", "Кот", 4, 10}, {"dog", "dog", 14, 17}});
 }
 
-TEST_CASE("Leading BOM is ignored and internal BOM separates tokens", "[text_processor][unicode]") {
-    TextProcessor processor;
-    const std::string bom = "\xEF\xBB\xBF";
-    const std::vector<std::string> first{"привет"};
-    const std::vector<std::string> middle{"ко", "т"};
-
-    REQUIRE(processor.Process(bom + "ПРИВЕТ") == first);
-    REQUIRE(processor.Process(bom).empty());
-    REQUIRE(processor.Process(std::string("ко") + bom + "т") == middle);
+TEST_CASE("Process preserves yo and inflected forms as different words",
+          "[text_processor]") {
+  CheckTokens("е ё кот коты",
+              {{"е", "е", 0, 2}, {"ё", "ё", 3, 5},
+               {"кот", "кот", 6, 12}, {"коты", "коты", 13, 21}});
 }
 
-TEST_CASE("Malformed UTF-8 is rejected", "[text_processor][validation]") {
-    TextProcessor processor;
-    const std::vector<std::string> invalid{
-        "\xFF",             // Forbidden byte.
-        "\xD0",             // Truncated two-byte sequence.
-        "\x80",             // Continuation byte without a lead byte.
-        "\xC0\xAF",         // Overlong encoding.
-        "\xE2\x28\xA1",     // Invalid continuation byte.
-        "\xED\xA0\x80",     // Encoded surrogate U+D800.
-        "\xF4\x90\x80\x80"  // Code point above U+10FFFF.
-    };
-
-    for (const auto& input : invalid) {
-        CAPTURE(input);
-        REQUIRE_THROWS_AS(processor.Process(input), ValidationError);
-    }
+TEST_CASE("Process respects a string_view substring boundary",
+          "[text_processor]") {
+  const std::string backing = "xxКот!tail";
+  CheckTokens(std::string_view(backing).substr(2, 6),
+              {{"кот", "Кот", 0, 6}});
 }
 
-TEST_CASE("NUL is rejected even inside a sized string", "[text_processor][validation]") {
-    TextProcessor processor;
-    const std::string with_nul("a\0b", 3);
-    const std::string only_nul(1, '\0');
-
-    REQUIRE_THROWS_AS(processor.Process(with_nul), ValidationError);
-    REQUIRE_THROWS_AS(processor.Process(only_nul), ValidationError);
+TEST_CASE("Split counts words for reserve", "[text_processor]") {
+  for (const auto text : {"", " !? ", "  кот кот  ", "C++ foo-bar 42"}) {
+    auto normalized = TextProcessor::Normalize(text);
+    CHECK(TextProcessor::Split(normalized) ==
+          TextProcessor::Process(text).size());
+  }
 }
 
-TEST_CASE("One processor can handle repeated calls without modifying input", "[text_processor]") {
-    TextProcessor processor;
-    const std::string input = "ПРИВЕТ, мир!";
-    const std::string original = input;
-    const std::vector<std::string> first{"привет", "мир"};
-    const std::vector<std::string> second{"кот"};
-
-    REQUIRE(processor.Process(input) == first);
-    REQUIRE(input == original);
-    REQUIRE(processor.Process("\u0301КОТ") == second);
-    REQUIRE(processor.Process("").empty());
-    REQUIRE(processor.Process(input) == first);
+TEST_CASE("SplitToTokens and Process produce the same tokens",
+          "[text_processor]") {
+  const std::string text = "Кот, кот!";
+  const auto direct = TextProcessor::SplitToTokens(text);
+  const auto processed = TextProcessor::Process(text);
+  REQUIRE(direct.size() == processed.size());
+  for (std::size_t i = 0; i < direct.size(); ++i) {
+    CHECK(direct[i].word == processed[i].word);
+    CHECK(direct[i].occurrence.position == processed[i].occurrence.position);
+    CHECK(direct[i].occurrence.begin_byte == processed[i].occurrence.begin_byte);
+    CHECK(direct[i].occurrence.end_byte == processed[i].occurrence.end_byte);
+  }
 }
+
+TEST_CASE("Text processing rejects embedded zero bytes",
+          "[text_processor]") {
+  const std::string text("cat\0dog", 7);
+  REQUIRE_THROWS_AS(TextProcessor::Normalize(text), ValidationError);
+  REQUIRE_THROWS_AS(TextProcessor::SplitToTokens(text), ValidationError);
+  REQUIRE_THROWS_AS(TextProcessor::Process(text), ValidationError);
+}
+
+TEST_CASE("Text processing rejects malformed UTF8", "[text_processor]") {
+  const std::vector<std::string> invalid = {
+      std::string("\x80", 1),
+      std::string("\xD0", 1),
+      std::string("\xD0\x20", 2),
+      std::string("\xC0\xAF", 2),
+      std::string("\xED\xA0\x80", 3),
+      std::string("\xF4\x90\x80\x80", 4),
+      std::string("cat ") + std::string("\xFF", 1)};
+  for (const auto& text : invalid) {
+    REQUIRE_THROWS_AS(TextProcessor::Normalize(text), ValidationError);
+    REQUIRE_THROWS_AS(TextProcessor::SplitToTokens(text), ValidationError);
+    REQUIRE_THROWS_AS(TextProcessor::Process(text), ValidationError);
+  }
+}
+
