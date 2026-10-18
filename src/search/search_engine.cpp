@@ -1,6 +1,10 @@
 #include "search_engine.hpp"
+
 #include <algorithm>
 #include <unordered_set>
+#include <limits>
+#include <stdexcept>
+#include <unordered_map>
 
 namespace local_search {
 
@@ -11,7 +15,7 @@ void SearchEngine::Restore() {
   InvertedIndex new_index;
   DocumentId max_id = 0;
   for (const Document &document : store_.LoadAll()) {
-    std::vector<std::string> normalized_text =
+    std::vector<Token> normalized_text =
         TextProcessor::Process(document.text);
     new_index.AddDocument(document.id, normalized_text);
     max_id = std::max(max_id, document.id);
@@ -24,7 +28,7 @@ void SearchEngine::Restore() {
 }
 
 AddedDocument SearchEngine::AddDocument(std::string title, std::string text) {
-  std::vector<std::string> normalized_text = TextProcessor::Process(text);
+  std::vector<Token> normalized_text = TextProcessor::Process(text);
   AddedDocument result;
   result.document_id = next_document_id_;
   result.title = title;
@@ -77,8 +81,12 @@ std::vector<SearchResult> SearchEngine::Search(std::string query,
   std::unordered_map<DocumentId, double> document_to_score;
   const std::size_t document_count = index_.DocumentCount();
   const double average_document_length = index_.AverageDocumentLength();
-  const std::unordered_set<std::string> query_words(normalized_query.begin(),
-                                                    normalized_query.end());
+  std::unordered_set<std::string> query_words;
+  query_words.reserve(normalized_query.size());
+
+  for (const auto& token : normalized_query) {
+    query_words.insert(token.word);
+  }
   for (auto &word : query_words) {
     const std::vector<Posting> *word_postings = index_.Find(word);
     if (word_postings == nullptr) {
@@ -86,7 +94,7 @@ std::vector<SearchResult> SearchEngine::Search(std::string query,
     }
     const std::size_t document_frequency = word_postings->size();
     for (const auto &posting : *word_postings) {
-      const std::size_t term_frequency = posting.frequency;
+      const std::size_t term_frequency = posting.occurrences.size();
       const std::size_t document_length =
           index_.GetDocumentLength(posting.document_id);
       const double bm25 =
