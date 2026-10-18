@@ -5,6 +5,7 @@ add_library(search_core STATIC
     search/search_engine.cpp
     search/bm25.cpp
     search/inverted_index.cpp
+    search/snippet.cpp
     storage/document_store.cpp
 )
 target_include_directories(search_core PUBLIC

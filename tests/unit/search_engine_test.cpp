@@ -314,7 +314,7 @@ TEST_CASE_METHOD(SearchEngineFixture,
 }
 
 TEST_CASE_METHOD(SearchEngineFixture,
-                 "SearchEngine returns the first 200 ASCII characters as snippet",
+                 "SearchEngine returns a snippet around a late ASCII match",
                  "[search_engine][integration]") {
   std::string text;
   for (int i = 0; i < 80; ++i) {
@@ -326,7 +326,7 @@ TEST_CASE_METHOD(SearchEngineFixture,
   const auto results = engine.Search("needle", 10);
   REQUIRE(results.size() == 1);
   REQUIRE(results.front().document_id == added.document_id);
-  REQUIRE(results.front().snippet == text.substr(0, 200));
+  REQUIRE(results.front().snippet == "…" + text.substr(text.size() - 200));
 }
 
 TEST_CASE("SearchEngine restores documents and scores after reopening storage",
@@ -498,18 +498,18 @@ TEST_CASE_METHOD(SearchEngineFixture,
 }
 
 TEST_CASE_METHOD(SearchEngineFixture,
-                 "SearchEngine snippet contains 200 code points without splitting UTF8",
+                 "SearchEngine snippet preserves UTF8 and marks a truncated prefix",
                  "[search_engine][integration][contract]") {
-  // 199 ASCII code points, followed by a two-byte Cyrillic letter as point 200.
-  // substr(0, 200) would include only its first byte, creating invalid UTF-8.
-  const std::string expected = "alpha " + std::string(193, 'x') + "\xD1\x8F";
-  const std::string text = expected + " needle";
+  // The original prefix has 200 code points. The matching word is after it.
+  // The snippet retains 200 source code points and adds a leading ellipsis.
+  const std::string prefix = "alpha " + std::string(193, 'x') + "\xD1\x8F";
+  const std::string text = prefix + " needle";
   engine.AddDocument("unicode.txt", text);
 
   const auto results = engine.Search("needle", 10);
   REQUIRE(results.size() == 1);
-  REQUIRE(results.front().snippet == expected);
-  REQUIRE(results.front().snippet.size() == 201);
+  REQUIRE(results.front().snippet == "…" + std::string(192, 'x') + "\xD1\x8F needle");
+  REQUIRE(results.front().snippet.size() == 204);
 }
 
 TEST_CASE_METHOD(SearchEngineFixture,
