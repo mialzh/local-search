@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f5f7">
+  <meta name="description" content="Просмотр текстового документа в jdanoff search.">
+  <script>
+    (() => {
+      let dark = false;
+      try { dark = localStorage.getItem("jdanoff-search.theme.v1") === "dark"; } catch {}
+      document.documentElement.dataset.theme = dark ? "dark" : "light";
+      document.querySelector('meta[name="theme-color"]').content = dark ? "#18181b" : "#f5f5f7";
+    })();
+  </script>
+  <title>Документ — jdanoff search</title>
+  <link rel="icon" href="/favicon.svg?v=2.9.0" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css?v=2.9.0">
+  <script type="module" src="/document-page.mjs?v=2.9.0"></script>
+</head>
+<body class="document-page">
+  <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M6 6a8 8 0 0 1 13 3M18 18A8 8 0 0 1 5 15"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9m4 0h3M4 17h3m4 0h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5a8.5 8.5 0 1 0 10.7 10.7Z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.7"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.4 1.4m11.2 11.2L19 19M5 19l1.4-1.4M17.6 6.4 19 5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 16v4h16v-4"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18v-1.5c0-1.1-.5-2-1.3-2.8a6 6 0 1 1 8.6 0c-.8.8-1.3 1.7-1.3 2.8V18H9ZM9 21h6M10 18v3m4-3v3"/></symbol>
+  </svg>
+  <a class="skip-link" href="#document-content">К тексту документа</a>
+  <header id="document-header" class="header">
+    <div class="document-header-start">
+    <a id="brand" class="brand" href="/" aria-label="jdanoff search, главная"><span class="brand-initial" aria-hidden="true">j</span><span class="brand-mask" aria-hidden="true"><span class="brand-tail">danoff <span class="brand-search">search</span></span></span></a>
+      <div id="document-matches" class="document-header-tools" role="group" aria-label="Выделение слов запроса" hidden>
+          <button id="highlight-toggle" class="reader-highlight-toggle" type="button" aria-label="Выделение совпадений" aria-pressed="false" aria-controls="document-content" title="Выделить слова запроса"><svg class="icon small" aria-hidden="true"><use href="#i-bulb"/></svg></button>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Тёмная тема" aria-pressed="false" title="Включить тёмную тему"><svg class="icon small" aria-hidden="true"><use id="theme-icon" href="#i-moon"/></svg></button>
+      <button id="download-document" class="reader-download" type="button" disabled title="Скачать текстовый файл" aria-label="Скачать текстовый файл"><svg class="icon small" aria-hidden="true"><use href="#i-download"/></svg><span>Скачать .txt</span></button>
+    </div>
+  </header>
+  <main class="document-page-main">
+    <section class="reader-page" aria-labelledby="document-title">
+      <div class="reader-heading"><p class="reader-eyebrow">Текстовый документ</p><h1 id="document-title">Документ</h1><p id="document-meta" class="reader-meta">Загружаем текст…</p></div>
+      <div id="document-body" class="document-body" aria-busy="true">
+        <div id="document-loading" class="reader-state" role="status"><span class="spinner" aria-hidden="true"></span><p>Открываем документ…</p></div>
+        <div id="document-error" class="reader-state reader-error" role="alert" hidden><div class="reader-error-symbol"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg></div><h2>Не удалось открыть документ</h2><p id="document-error-message"></p><button id="retry-document" class="reader-retry" type="button">Попробовать ещё раз</button></div>
+        <article id="document-content" class="document-text" tabindex="0" aria-label="Полный текст документа" hidden></article>
+      </div>
+      <div class="reader-footer"><span id="document-status" role="status" aria-live="polite">Загружаем документ</span><span>TXT</span></div>
+    </section>
+  </main>
+  <noscript><p class="noscript">Включи JavaScript, чтобы открыть документ.</p></noscript>
+</body>
+</html>

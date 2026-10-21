@@ -1,3 +1,5 @@
+import "./appearance.mjs?v=2.9.0";
+
 const $ = (id) => document.getElementById(id);
 const dialog = $("upload-dialog");
 
@@ -29,7 +31,7 @@ $("density-toggle").addEventListener("click", () => {
 });
 
 document.addEventListener("keydown", (event) => {
-  if (dialog.open) return;
+  if (document.querySelector("dialog[open]")) return;
   const command = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k" && !event.altKey;
   const slash = event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey &&
     !event.target.closest?.("input, textarea, select, [contenteditable='true']");
@@ -39,27 +41,3 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-function setTheme(theme) {
-  const dark = theme === "dark";
-  document.documentElement.dataset.theme = theme;
-  document.querySelector('meta[name="theme-color"]').content = dark ? "#18181b" : "#f5f5f7";
-  $("theme-toggle").setAttribute("aria-pressed", String(dark));
-  $("theme-toggle").title = dark ? "Включить светлую тему" : "Включить тёмную тему";
-  $("theme-icon").setAttribute("href", dark ? "#i-sun" : "#i-moon");
-}
-setTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
-$("theme-toggle").addEventListener("click", () => {
-  const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-  setTheme(theme);
-  try { localStorage.setItem("jdanoff-search.theme.v1", theme); } catch { /* The toggle also works without browser storage. */ }
-});
-
-const brand = $("brand");
-function replayBrand() {
-  brand.classList.remove("brand-animate");
-  // Restart the two short CSS animations without changing the link's width.
-  void brand.offsetWidth;
-  brand.classList.add("brand-animate");
-}
-brand.addEventListener("pointerenter", replayBrand);
-brand.addEventListener("focus", replayBrand);

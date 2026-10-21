@@ -8,6 +8,8 @@ const messages = {
   InvalidLimit: "Количество результатов должно быть целым числом от 1 до 100.",
   DocumentTooLarge: "Файл слишком большой. Максимальный размер — 5 МБ.",
   UnsupportedFileType: "Поддерживаются только файлы с расширением .txt.",
+  InvalidDocumentId: "Не удалось открыть документ: некорректная ссылка.",
+  DocumentNotFound: "Этот документ больше не доступен. Попробуй обновить поиск.",
   InternalError: "На сервере произошла ошибка. Попробуй ещё раз позже.",
 };
 
@@ -123,6 +125,27 @@ export async function uploadDocument(file) {
   return body;
 }
 
+export async function getDocument(id, signal) {
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new ApiError(messages.InvalidDocumentId, { code: "InvalidDocumentId" });
+  }
+  let body;
+  try {
+    body = await request(`/documents/${id}`, { signal });
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      throw new ApiError(messages.DocumentNotFound, {
+        code: error.code || "DocumentNotFound", status: 404,
+      });
+    }
+    throw error;
+  }
+  if (body?.document_id !== id || typeof body.title !== "string" || typeof body.text !== "string") {
+    throw new ApiError("Сервер вернул неправильный формат документа.", { status: 200 });
+  }
+  return body;
+}
+
 export async function checkHealth() {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 4000);
@@ -139,4 +162,5 @@ export async function checkHealth() {
 export function queryWords(query) {
   return new Set(query.normalize("NFC").toLowerCase().match(/[\p{L}\p{Nd}][\p{L}\p{Nd}\p{M}]*/gu) ?? []);
 }
+
 

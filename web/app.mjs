@@ -1,5 +1,5 @@
-import { ApiError, checkHealth, queryWords, searchDocuments, uploadDocument } from "./api.mjs?v=minimal-8";
-import { openUploadDialog } from "./workspace.mjs?v=minimal-8";
+import { ApiError, checkHealth, queryWords, searchDocuments, uploadDocument } from "./api.mjs?v=2.9.0";
+import { openUploadDialog } from "./workspace.mjs?v=2.9.0";
 
 const $ = (id) => document.getElementById(id);
 const query = $("query");
@@ -91,7 +91,16 @@ function showResults(items, text, milliseconds) {
     fileIcon.append(icon("file"));
     const content = element("div", "result-content");
     const top = element("div", "result-top");
-    top.append(element("h3", "result-title", item.title));
+    const heading = element("h3", "result-title");
+    const link = element("a", "result-link", item.title);
+    const documentUrl = new URL("/document.html", window.location.origin);
+    documentUrl.search = new URLSearchParams({ id: String(item.document_id), q: text, limit: limit.value });
+    link.href = documentUrl.pathname + documentUrl.search;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.title = "Открыть документ в новой вкладке";
+    heading.append(link);
+    top.append(heading);
     const snippet = element("p", "result-snippet");
     appendSnippet(snippet, item.snippet, words);
     content.append(top, snippet);
@@ -284,5 +293,14 @@ if (window.location.protocol === "file:") {
   $("connection-notice").textContent = "Открой http://localhost:8080 после запуска сервера. Страница не подключается к API при открытии HTML-файла напрямую.";
 } else {
   void refreshConnection();
+  const initialParams = new URLSearchParams(window.location.search);
+  const initialLimit = initialParams.get("limit");
+  if (Array.from(limit.options).some((option) => option.value === initialLimit)) limit.value = initialLimit;
+  const initialQuery = initialParams.get("q");
+  if (initialQuery) {
+    query.value = initialQuery;
+    void runSearch();
+  }
 }
+
 

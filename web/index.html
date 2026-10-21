@@ -14,9 +14,9 @@
     })();
   </script>
   <title>jdanoff search</title>
-  <link rel="icon" href="/favicon.svg?v=minimal-8" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css?v=minimal-9">
-  <script type="module" src="/app.mjs?v=minimal-8"></script>
+  <link rel="icon" href="/favicon.svg?v=2.9.0" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css?v=2.9.0">
+  <script type="module" src="/app.mjs?v=2.9.0"></script>
 </head>
 <body>
   <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -30,6 +30,9 @@
     <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5a8.5 8.5 0 1 0 10.7 10.7Z"/></symbol>
     <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.7"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.4 1.4m11.2 11.2L19 19M5 19l1.4-1.4M17.6 6.4 19 5"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 16v4h16v-4"/></symbol>
+    <symbol id="i-chevron-up" viewBox="0 0 24 24"><path d="m6 14 6-6 6 6"/></symbol>
+    <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 10 6 6 6-6"/></symbol>
   </svg>
   <a class="skip-link" href="#query">К поиску</a>
   <header class="header">
@@ -37,7 +40,7 @@
     <div class="header-actions">
       <button class="connection" id="connection" type="button" title="Проверить соединение с сервером"><span class="status-dot"></span><span id="connection-label" class="sr-only" role="status">Подключаемся</span></button>
       <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Тёмная тема" aria-pressed="false" title="Включить тёмную тему"><svg class="icon small" aria-hidden="true"><use id="theme-icon" href="#i-moon"/></svg></button>
-      <button id="open-upload" class="upload-trigger" type="button" aria-haspopup="dialog"><svg class="icon small" aria-hidden="true"><use href="#i-plus"/></svg><span id="upload-button-label">Добавить файлы</span></button>
+      <button id="open-upload" class="upload-trigger" type="button" aria-label="Добавить файлы" aria-haspopup="dialog"><svg class="icon small" aria-hidden="true"><use href="#i-plus"/></svg><span id="upload-button-label">Добавить файлы</span></button>
     </div>
   </header>
   <main class="workspace">
@@ -73,4 +76,5 @@
   <noscript><p class="noscript">Включи JavaScript для загрузки документов и поиска.</p></noscript>
 </body>
 </html>
+
 

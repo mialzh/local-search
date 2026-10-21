@@ -51,6 +51,10 @@ AddedDocument SearchEngine::AddDocument(std::string title, std::string text) {
   return result;
 }
 
+Document SearchEngine::GetDocument(DocumentId document_id) const {
+    return store_.Get(document_id);
+}
+
 std::vector<SearchResult> SearchEngine::Search(std::string query,
                                                std::size_t limit) const {
 

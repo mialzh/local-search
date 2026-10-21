@@ -69,6 +69,17 @@ std::vector<SearchResult> SearchComponent::Search(
     ).Get();
 }
 
+Document SearchComponent::GetDocument(DocumentId id) {
+    return userver::utils::Async(
+        fs_task_processor_,
+        "get-document",
+        [this, id] {
+            std::lock_guard lock(mutex_);
+            return engine_.GetDocument(id);
+        }
+    ).Get();
+}
+
 userver::yaml_config::Schema SearchComponent::GetStaticConfigSchema() {
     return userver::yaml_config::MergeSchemas<
         userver::components::ComponentBase

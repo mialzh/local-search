@@ -46,6 +46,12 @@ components_manager:
             max_headers_size: 65536
             request_body_size_log_limit: 0
 
+        handler-open-document:
+            path: /documents/{document_id}
+            method: GET
+            task_processor: main-task-processor
+            request_body_size_log_limit: 0
+
         # Run the server from the repository root. Only web/ is public.
         fs-cache-web:
             dir: ./web

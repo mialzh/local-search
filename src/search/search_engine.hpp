@@ -29,6 +29,7 @@ public:
 
   std::vector<SearchResult> Search(std::string query, std::size_t limit) const;
 
+  Document GetDocument(DocumentId document_id) const;
 private:
   DocumentStore &store_;
   InvertedIndex index_;
