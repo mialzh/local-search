@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <utility>
 #include <unordered_map>
+#include <set>
 
 namespace local_search {
 
@@ -76,39 +77,61 @@ std::vector<SearchResult> SearchEngine::Search(std::string query,
   const std::size_t document_count = index_.DocumentCount();
   const double average_document_length = index_.AverageDocumentLength();
 
-  std::unordered_set<std::string> query_words;
-  query_words.reserve(normalized_query.size());
+  std::set<std::vector<std::string>> query_groups;
 
   for (const auto& token : normalized_query) {
-    query_words.insert(token.word);
+      auto lemmas = token.lemmas;
+
+      if (lemmas.empty()) {
+          lemmas.push_back(token.word);
+      }
+
+      // Одинаковые группы должны совпадать независимо от порядка лемм.
+      std::sort(lemmas.begin(), lemmas.end());
+      lemmas.erase(
+          std::unique(lemmas.begin(), lemmas.end()),
+          lemmas.end());
+
+      query_groups.insert(std::move(lemmas));
   }
 
-  for (const auto& word : query_words) {
-    const auto* word_postings = index_.Find(word);
-    if (word_postings == nullptr) {
-      continue;
-    }
+  for (const auto& group : query_groups) {
+      // Лучший вклад этой группы для каждого документа.
+      std::unordered_map<DocumentId, double> best_scores;
 
-    const std::size_t document_frequency = word_postings->size();
+      for (const auto& lemma : group) {
+          const auto* postings = index_.Find(lemma);
+          if (postings == nullptr) {
+              continue;
+          }
 
-    for (const auto& posting : *word_postings) {
-      const double bm25 = Bm25Contribution(
-          posting.occurrences.size(),
-          document_frequency,
-          document_count,
-          index_.GetDocumentLength(posting.document_id),
-          average_document_length);
+          const std::size_t document_frequency = postings->size();
 
-      auto& candidate = candidates[posting.document_id];
-      candidate.score += bm25;
+          for (const auto& posting : *postings) {
+              const double score = Bm25Contribution(
+                  posting.occurrences.size(),
+                  document_frequency,
+                  document_count,
+                  index_.GetDocumentLength(posting.document_id),
+                  average_document_length);
 
-      candidate.matches.insert(
-          candidate.matches.end(),
-          posting.occurrences.begin(),
-          posting.occurrences.end());
-    }
+              auto& best = best_scores[posting.document_id];
+              best = std::max(best, score);
+
+              // Собираем совпадения всех подходящих лемм.
+              auto& matches = candidates[posting.document_id].matches;
+              matches.insert(
+                  matches.end(),
+                  posting.occurrences.begin(),
+                  posting.occurrences.end());
+          }
+      }
+
+      // Между разными группами вклады складываются.
+      for (const auto& [document_id, score] : best_scores) {
+          candidates[document_id].score += score;
+      }
   }
-
   // Пока сохраняем только ID и рейтинг.
   std::vector<SearchResult> result;
   result.reserve(candidates.size());

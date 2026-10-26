@@ -1,5 +1,6 @@
 #include "text_processor.hpp"
 #include "errors.hpp"
+#include "lemmatizer.hpp"
 #include <limits>
 #include <utility>
 
@@ -154,6 +155,14 @@ std::vector<Token> TextProcessor::SplitToTokens(std::string_view text) {
 }
 
 std::vector<Token> TextProcessor::Process(std::string_view text) {
-  return SplitToTokens(text);
+    auto tokens = SplitToTokens(text);
+
+    static const Lemmatizer lemmatizer;
+
+    for (auto& token : tokens) {
+        token.lemmas = lemmatizer.Lemmatize(token.word);
+    }
+
+    return tokens;
 }
 } // namespace local_search

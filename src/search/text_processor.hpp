@@ -23,8 +23,9 @@ struct Occurrence {
 };
 
 struct Token {
-  std::string word;
-  Occurrence occurrence;
+    std::string word;
+    Occurrence occurrence;
+    std::vector<std::string> lemmas;
 };
 
 class TextProcessor {
