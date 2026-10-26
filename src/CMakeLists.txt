@@ -9,6 +9,11 @@ add_library(search_core STATIC
     storage/document_store.cpp
     search/lemmatizer.cpp
 )
+
+target_link_libraries(search_core PRIVATE
+    LocalSearchMorphology::Morphology
+)
+
 target_include_directories(search_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}"
 )
