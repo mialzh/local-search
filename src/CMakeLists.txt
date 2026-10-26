@@ -7,6 +7,7 @@ add_library(search_core STATIC
     search/inverted_index.cpp
     search/snippet.cpp
     storage/document_store.cpp
+    search/lemmatizer.cpp
 )
 target_include_directories(search_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}"

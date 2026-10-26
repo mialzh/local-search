@@ -9,6 +9,11 @@ option(BUILD_SERVER "Build the HTTP server" OFF)
 
 find_package(nlohmann_json CONFIG REQUIRED)
 
+find_package(LocalSearchMorphology CONFIG REQUIRED)
+target_link_libraries(search_core PRIVATE
+    LocalSearchMorphology::Morphology
+)
+
 if(BUILD_SERVER)
     find_package(userver COMPONENTS core REQUIRED)
 endif()

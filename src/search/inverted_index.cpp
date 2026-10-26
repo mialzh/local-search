@@ -20,8 +20,17 @@ void InvertedIndex::AddDocument(DocumentId id,
   }
 
   std::unordered_map<std::string, std::vector<Occurrence>> occurrences_by_word;
-  for (const auto &word : words) {
-    occurrences_by_word[word.word].push_back(word.occurrence);
+
+  for (const auto& token : words) {
+      // Поддержка токенов, созданных напрямую без лемматизации.
+      if (token.lemmas.empty()) {
+          occurrences_by_word[token.word].push_back(token.occurrence);
+          continue;
+      }
+
+      for (const auto& lemma : token.lemmas) {
+          occurrences_by_word[lemma].push_back(token.occurrence);
+      }
   }
 
   struct Change {
