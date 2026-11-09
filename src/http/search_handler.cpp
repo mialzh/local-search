@@ -88,6 +88,13 @@ std::string SearchHandler::HandleRequestThrow(
             item["title"] = result.title;
             item["score"] = result.score;
             item["snippet"] = result.snippet;
+            userver::formats::json::ValueBuilder matched_words(
+                userver::formats::common::Type::kArray
+            );
+            for (const auto& word : result.matched_words) {
+                matched_words.PushBack(word);
+            }
+            item["matched_words"] = std::move(matched_words);
             results.PushBack(std::move(item));
         }
 

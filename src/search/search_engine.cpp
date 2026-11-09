@@ -10,6 +10,35 @@
 #include <set>
 
 namespace local_search {
+namespace {
+
+// Occurrences refer to the original UTF-8 document. Return only the actual
+// matched surface forms, normalized in the same way as indexed tokens.
+std::vector<std::string> CollectMatchedWords(
+    std::string_view text, const std::vector<Occurrence>& matches) {
+  std::unordered_set<std::string_view> seen;
+  std::vector<std::string> words;
+
+  for (const auto& match : matches) {
+    if (match.begin_byte >= match.end_byte || match.end_byte > text.size()) {
+      throw std::logic_error("Invalid matched occurrence");
+    }
+    const auto original = text.substr(
+        match.begin_byte, match.end_byte - match.begin_byte);
+    if (!seen.insert(original).second) {
+      continue;
+    }
+    std::string normalized;
+    TextProcessor::Normalize(original).toUTF8String(normalized);
+    words.push_back(std::move(normalized));
+  }
+
+  std::sort(words.begin(), words.end());
+  words.erase(std::unique(words.begin(), words.end()), words.end());
+  return words;
+}
+
+}  // namespace
 
 SearchEngine::SearchEngine(DocumentStore &store)
     : store_(store), next_document_id_(1) {}
@@ -54,6 +83,42 @@ AddedDocument SearchEngine::AddDocument(std::string title, std::string text) {
 
 Document SearchEngine::GetDocument(DocumentId document_id) const {
     return store_.Get(document_id);
+}
+
+DocumentWithMatches SearchEngine::GetDocumentWithMatches(
+    DocumentId document_id, std::string query) const {
+  Document document = store_.Get(document_id);
+  if (query.empty()) {
+    return {std::move(document), {}};
+  }
+
+  std::unordered_set<std::string> lemmas;
+  for (const auto& token : TextProcessor::Process(query)) {
+    if (token.lemmas.empty()) {
+      lemmas.insert(token.word);
+    } else {
+      lemmas.insert(token.lemmas.begin(), token.lemmas.end());
+    }
+  }
+
+  std::vector<Occurrence> matches;
+  for (const auto& lemma : lemmas) {
+    const auto* postings = index_.Find(lemma);
+    if (postings == nullptr) {
+      continue;
+    }
+    const auto posting = std::find_if(
+        postings->begin(), postings->end(), [document_id](const auto& item) {
+          return item.document_id == document_id;
+        });
+    if (posting != postings->end()) {
+      matches.insert(matches.end(), posting->occurrences.begin(),
+                     posting->occurrences.end());
+    }
+  }
+
+  auto words = CollectMatchedWords(document.text, matches);
+  return {std::move(document), std::move(words)};
 }
 
 std::vector<SearchResult> SearchEngine::Search(std::string query,
@@ -159,9 +224,9 @@ std::vector<SearchResult> SearchEngine::Search(std::string query,
     Document document = store_.Get(item.document_id);
     item.title = std::move(document.title);
 
-    item.snippet = MakeSnippet(
-        document.text,
-        std::move(candidates.at(item.document_id).matches));
+    auto& matches = candidates.at(item.document_id).matches;
+    item.matched_words = CollectMatchedWords(document.text, matches);
+    item.snippet = MakeSnippet(document.text, std::move(matches));
   }
 
   return result;

@@ -1,4 +1,4 @@
-import { getDocument, queryWords } from "./api.mjs?v=2.1.0";
+import { getDocument, queryWords } from "./api.mjs?v=2.9.1";
 
 const $ = (id) => document.getElementById(id);
 const dialog = $("document-dialog");
@@ -34,8 +34,8 @@ function setMatch(index, scroll = true) {
   if (scroll) mark.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
 }
 
-function renderText(text) {
-  const words = queryWords(currentQuery);
+function renderText(text, matchedWords) {
+  const words = queryWords(currentQuery, matchedWords);
   const fragment = document.createDocumentFragment();
   const pattern = /[\p{L}\p{Nd}][\p{L}\p{Nd}\p{M}]*/gu;
   let offset = 0;
@@ -45,7 +45,7 @@ function renderText(text) {
   activeMatch = -1;
   for (const match of text.matchAll(pattern)) {
     wordCount++;
-    if (!words.has(match[0].normalize("NFC").toLowerCase())) continue;
+    if (!words.has(match[0].normalize("NFC").toLowerCase().normalize("NFC"))) continue;
     totalMatches++;
     if (marks.length >= MAX_MARKS) continue;
     fragment.append(document.createTextNode(text.slice(offset, match.index)));
@@ -100,13 +100,13 @@ export async function openDocument(id, { title = "Документ", query = "",
     else window.history.pushState(state, "", next);
   }
   try {
-    const result = await getDocument(id, signal);
+    const result = await getDocument(id, signal, currentQuery);
     if (signal.aborted || version !== generation || !dialog.open) return;
     documentData = result;
     $("document-title").textContent = result.title || "Без названия";
     content.hidden = false;
     $("document-loading").hidden = true;
-    renderText(result.text);
+    renderText(result.text, result.matched_words);
     $("download-document").disabled = false;
     if (marks.length) setMatch(0);
     document.dispatchEvent(new CustomEvent("document-connection", { detail: "online" }));

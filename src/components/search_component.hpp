@@ -27,6 +27,7 @@ public:
     AddedDocument AddDocument(std::string title, std::string text);
     std::vector<SearchResult> Search(std::string query, std::size_t limit);
     Document GetDocument(DocumentId id);
+    DocumentWithMatches GetDocumentWithMatches(DocumentId id, std::string query);
 
     static userver::yaml_config::Schema GetStaticConfigSchema();
 

@@ -19,6 +19,11 @@ struct AddedDocument {
   std::size_t word_count;
 };
 
+struct DocumentWithMatches {
+  Document document;
+  std::vector<std::string> matched_words;
+};
+
 class SearchEngine {
 public:
   explicit SearchEngine(DocumentStore &store);
@@ -30,6 +35,9 @@ public:
   std::vector<SearchResult> Search(std::string query, std::size_t limit) const;
 
   Document GetDocument(DocumentId document_id) const;
+
+  DocumentWithMatches GetDocumentWithMatches(
+      DocumentId document_id, std::string query) const;
 private:
   DocumentStore &store_;
   InvertedIndex index_;

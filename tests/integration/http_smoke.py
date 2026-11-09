@@ -185,9 +185,23 @@ def main():
                 found = checks.search("умные указатели")["results"]
                 assert len(found) == 1, found
                 item = found[0]
-                assert set(item) == {"document_id", "title", "score", "snippet"}, item
+                assert set(item) == {"document_id", "title", "score", "snippet", "matched_words"}, item
                 assert item["document_id"] == document_id and item["snippet"] == text, item
                 assert math.isfinite(item["score"]) and item["score"] > 0
+                assert set(item["matched_words"]) == {"умные", "указатели"}, item
+                inflected = checks.search("умный указатель")["results"]
+                assert inflected[0]["document_id"] == document_id, inflected
+                assert set(inflected[0]["matched_words"]) == {"умные", "указатели"}
+                opened = checks.request(
+                    "/documents/" + str(document_id) + "?" +
+                    urllib.parse.urlencode({"q": "умный указатель"}), 200
+                )
+                assert opened["text"] == text
+                assert set(opened["matched_words"]) == {"умные", "указатели"}
+                plain = checks.request("/documents/" + str(document_id), 200)
+                assert plain["text"] == text and plain["matched_words"] == []
+                checks.request("/documents/" + str(document_id) + "?q=a&q=b",
+                               400, error="InvalidQuery")
                 duplicate_query = checks.search("умные умные указатели указатели")["results"]
                 assert math.isclose(duplicate_query[0]["score"], item["score"], rel_tol=1e-12)
 

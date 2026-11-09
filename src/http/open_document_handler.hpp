@@ -11,7 +11,7 @@ public:
     OpenDocumentHandler(
         const userver::components::ComponentConfig& config,
         const userver::components::ComponentContext& context
-    )
+    );
 
     std::string HandleRequestThrow(
         const userver::server::http::HttpRequest& request,

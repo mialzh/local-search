@@ -1,4 +1,4 @@
-import { getDocument, queryWords } from "./api.mjs?v=2.9.0";
+import { getDocument, queryWords } from "./api.mjs?v=2.9.1";
 import "./appearance.mjs?v=2.9.0";
 
 // Every document opens at its beginning, including reloads and old match links.
@@ -43,8 +43,8 @@ function syncHighlights() {
     : "Документ открыт целиком";
 }
 
-function renderText(text) {
-  const words = queryWords(currentQuery);
+function renderText(text, matchedWords) {
+  const words = queryWords(currentQuery, matchedWords);
   const fragment = document.createDocumentFragment();
   const pattern = /[\p{L}\p{Nd}][\p{L}\p{Nd}\p{M}]*/gu;
   let offset = 0;
@@ -53,7 +53,7 @@ function renderText(text) {
   totalMatches = 0;
   for (const match of text.matchAll(pattern)) {
     wordCount++;
-    if (!words.has(match[0].normalize("NFC").toLowerCase())) continue;
+    if (!words.has(match[0].normalize("NFC").toLowerCase().normalize("NFC"))) continue;
     totalMatches++;
     if (markedCount >= MAX_MARKS) continue;
     fragment.append(document.createTextNode(text.slice(offset, match.index)));
@@ -88,7 +88,7 @@ async function loadDocument() {
   markedCount = 0;
   documentData = undefined;
   try {
-    const result = await getDocument(id, signal);
+    const result = await getDocument(id, signal, currentQuery);
     if (signal.aborted || version !== generation) return;
     documentData = result;
     const title = result.title || "Без названия";
@@ -96,7 +96,7 @@ async function loadDocument() {
     document.title = `${title} — jdanoff search`;
     content.hidden = false;
     $("document-loading").hidden = true;
-    renderText(result.text);
+    renderText(result.text, result.matched_words);
     $("download-document").disabled = false;
   } catch (error) {
     if (signal.aborted || version !== generation) return;

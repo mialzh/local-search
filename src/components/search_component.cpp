@@ -80,6 +80,19 @@ Document SearchComponent::GetDocument(DocumentId id) {
     ).Get();
 }
 
+DocumentWithMatches SearchComponent::GetDocumentWithMatches(
+    DocumentId id, std::string query
+) {
+    return userver::utils::Async(
+        fs_task_processor_,
+        "get-document-with-matches",
+        [this, id, query = std::move(query)]() mutable {
+            std::lock_guard lock(mutex_);
+            return engine_.GetDocumentWithMatches(id, std::move(query));
+        }
+    ).Get();
+}
+
 userver::yaml_config::Schema SearchComponent::GetStaticConfigSchema() {
     return userver::yaml_config::MergeSchemas<
         userver::components::ComponentBase

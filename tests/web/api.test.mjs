@@ -1,7 +1,7 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
-  ApiError, checkHealth, queryWords, searchDocuments, uploadDocument, validateFile, validateQuery,
+  ApiError, checkHealth, getDocument, queryWords, searchDocuments, uploadDocument, validateFile, validateQuery,
 } from "../../web/api.mjs";
 
 const originalFetch = globalThis.fetch;
@@ -132,4 +132,69 @@ test("health requires the real endpoint response", async () => {
 test("highlight words are normalized whole tokens", () => {
   assert.deepEqual(queryWords("УМНЫЕ умные C++ cafe\u0301"), new Set(["умные", "c", "café"]));
   assert.equal(queryWords("указатель").has("указатели"), false);
+});
+
+
+
+test("highlight forms come from actual server matches rather than query lemmas", () => {
+  assert.deepEqual(
+    queryWords("документ кошка", ["ДОКУМЕНТАМИ", "документы", "ДОКУМЕНТАМИ"]),
+    new Set(["документами", "документы"]),
+  );
+  assert.equal(queryWords("документ", ["документами"]).has("документ"), false);
+  assert.equal(queryWords("документ", ["документами"]).has("недокументами"), false);
+  assert.deepEqual(queryWords("café", ["cafe\u0301"]), new Set(["café"]));
+  assert.deepEqual(queryWords("документ", []), new Set());
+  assert.deepEqual(queryWords("ДОКУМЕНТ"), new Set(["документ"]));
+});
+
+test("search preserves per-document matched forms", async () => {
+  const items = [
+    { ...result, matched_words: ["документами"] },
+    { ...result, document_id: 2, matched_words: ["кошками"] },
+  ];
+  globalThis.fetch = async () => json({ results: items });
+  assert.deepEqual(await searchDocuments("документ кошка", 10), items);
+});
+
+test("search rejects malformed matched_words", async () => {
+  for (const matched_words of [null, "документами", [7], {}]) {
+    globalThis.fetch = async () => json({ results: [{ ...result, matched_words }] });
+    await assert.rejects(searchDocuments("документ", 10), { name: "ApiError", status: 200 });
+  }
+});
+
+test("document requests pass the query and retain original text with matched forms", async () => {
+  const document = {
+    document_id: 1, title: "forms.txt",
+    text: "🌊 ДОКУМЕНТАМИ <script>literal text</script>",
+    matched_words: ["документами"],
+  };
+  globalThis.fetch = async (path) => {
+    const url = new URL(path, "http://localhost:8080");
+    assert.equal(url.pathname, "/documents/1");
+    assert.equal(url.searchParams.get("q"), "документ & C++");
+    return json(document);
+  };
+  assert.deepEqual(await getDocument(1, undefined, "документ & C++"), document);
+});
+
+test("document metadata is optional for older servers and validated when present", async () => {
+  const document = { document_id: 1, title: "legacy.txt", text: "документ" };
+  globalThis.fetch = async (path) => {
+    assert.equal(path, "/documents/1");
+    return json(document);
+  };
+  assert.deepEqual(await getDocument(1), document);
+  for (const matched_words of [null, "word", [7]]) {
+    globalThis.fetch = async () => json({ ...document, matched_words });
+    await assert.rejects(getDocument(1), { name: "ApiError", status: 200 });
+  }
+});
+
+test("invalid document highlight queries never reach the server", async () => {
+  globalThis.fetch = () => assert.fail("Unexpected request");
+  for (const query of ["a\0b", "я".repeat(1025), 42]) {
+    await assert.rejects(getDocument(1, undefined, query), { code: "InvalidQuery" });
+  }
 });

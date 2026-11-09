@@ -98,13 +98,19 @@ async function request(path, { timeout = 15000, signal, ...options } = {}) {
   }
 }
 
+function validMatchedWords(words) {
+  return words === undefined ||
+    (Array.isArray(words) && words.every((word) => typeof word === "string"));
+}
+
 export async function searchDocuments(query, limit, signal) {
   validateQuery(query, limit);
   const body = await request(`/search?${new URLSearchParams({ q: query, limit: String(limit) })}`, { signal });
   if (!Array.isArray(body?.results) || body.results.some((item) =>
     !item || !Number.isSafeInteger(item.document_id) || item.document_id <= 0 ||
     typeof item.title !== "string" || typeof item.snippet !== "string" ||
-    typeof item.score !== "number" || !Number.isFinite(item.score))) {
+    typeof item.score !== "number" || !Number.isFinite(item.score) ||
+    !validMatchedWords(item.matched_words))) {
     throw new ApiError("Сервер вернул неправильный формат результатов.", { status: 200 });
   }
   return body.results;
@@ -125,13 +131,17 @@ export async function uploadDocument(file) {
   return body;
 }
 
-export async function getDocument(id, signal) {
+export async function getDocument(id, signal, query = "") {
   if (!Number.isSafeInteger(id) || id <= 0) {
     throw new ApiError(messages.InvalidDocumentId, { code: "InvalidDocumentId" });
   }
+  if (typeof query !== "string" || encoder.encode(query).length > 2048 || query.includes("\0")) {
+    throw new ApiError(messages.InvalidQuery, { code: "InvalidQuery" });
+  }
+  const suffix = query ? `?${new URLSearchParams({ q: query })}` : "";
   let body;
   try {
-    body = await request(`/documents/${id}`, { signal });
+    body = await request(`/documents/${id}${suffix}`, { signal });
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) {
       throw new ApiError(messages.DocumentNotFound, {
@@ -140,7 +150,8 @@ export async function getDocument(id, signal) {
     }
     throw error;
   }
-  if (body?.document_id !== id || typeof body.title !== "string" || typeof body.text !== "string") {
+  if (body?.document_id !== id || typeof body.title !== "string" || typeof body.text !== "string" ||
+      !validMatchedWords(body.matched_words)) {
     throw new ApiError("Сервер вернул неправильный формат документа.", { status: 200 });
   }
   return body;
@@ -159,8 +170,9 @@ export async function checkHealth() {
   }
 }
 
-export function queryWords(query) {
-  return new Set(query.normalize("NFC").toLowerCase().match(/[\p{L}\p{Nd}][\p{L}\p{Nd}\p{M}]*/gu) ?? []);
+export function queryWords(query, matchedWords) {
+  // A supplied array is authoritative, including an empty one. Fall back to
+  // literal query tokens only when talking to a server without this field.
+  const source = matchedWords === undefined ? query : matchedWords.join(" ");
+  return new Set(source.normalize("NFC").toLowerCase().normalize("NFC").match(/[\p{L}\p{Nd}][\p{L}\p{Nd}\p{M}]*/gu) ?? []);
 }
-
-

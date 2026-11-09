@@ -1,4 +1,4 @@
-import { ApiError, checkHealth, queryWords, searchDocuments, uploadDocument } from "./api.mjs?v=2.9.0";
+import { ApiError, checkHealth, queryWords, searchDocuments, uploadDocument } from "./api.mjs?v=2.9.1";
 import { openUploadDialog } from "./workspace.mjs?v=2.9.0";
 
 const $ = (id) => document.getElementById(id);
@@ -67,7 +67,7 @@ function appendSnippet(container, snippet, words) {
   for (const match of snippet.matchAll(pattern)) {
     container.append(document.createTextNode(snippet.slice(offset, match.index)));
     const token = match[0];
-    container.append(words.has(token.normalize("NFC").toLowerCase())
+    container.append(words.has(token.normalize("NFC").toLowerCase().normalize("NFC"))
       ? element("mark", "", token) : document.createTextNode(token));
     offset = match.index + token.length;
   }
@@ -84,8 +84,8 @@ function showEmpty(title, message) {
 
 function showResults(items, text, milliseconds) {
   results.replaceChildren();
-  const words = queryWords(text);
   for (const item of items) {
+    const words = queryWords(text, item.matched_words);
     const article = element("article", "result-item");
     const fileIcon = element("div", "result-icon");
     fileIcon.append(icon("file"));
@@ -302,5 +302,3 @@ if (window.location.protocol === "file:") {
     void runSearch();
   }
 }
-
-

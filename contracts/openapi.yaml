@@ -142,6 +142,7 @@ paths:
                         title: pointers.txt
                         score: 0.575364
                         snippet: Умные указатели управляют памятью.
+                        matched_words: [умные, указатели]
         '400':
           description: |
             InvalidQuery — отсутствующий или повторный q, неверный текст,
@@ -155,6 +156,38 @@ paths:
                 error:
                   code: InvalidQuery
                   message: Query must contain at least one word
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /documents/{document_id}:
+    get:
+      summary: Открыть исходный документ и получить словоформы для подсветки
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+        - name: q
+          in: query
+          required: false
+          description: Запрос для подсветки, не более 2048 байт UTF-8. Без запроса matched_words пуст.
+          schema:
+            type: string
+            maxLength: 2048
+      responses:
+        '200':
+          description: Полный исходный текст и найденные словоформы
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        '400':
+          description: InvalidDocumentId или InvalidQuery
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -199,7 +232,7 @@ components:
     SearchResult:
       type: object
       additionalProperties: false
-      required: [document_id, title, score, snippet]
+      required: [document_id, title, score, snippet, matched_words]
       properties:
         document_id:
           $ref: '#/components/schemas/DocumentId'
@@ -214,8 +247,33 @@ components:
           description: Оценка BM25; не вероятность и не процент уверенности
         snippet:
           type: string
-          maxLength: 200
-          description: Начало исходного текста, до 200 Unicode code points, без многоточия
+          maxLength: 202
+          description: Фрагмент исходного текста вокруг совпадений, до 200 Unicode code points плюс возможные многоточия
+        matched_words:
+          $ref: '#/components/schemas/MatchedWords'
+
+    MatchedWords:
+      type: array
+      uniqueItems: true
+      description: Найденные в документе словоформы, NFC и нижний регистр. Фронт выделяет их целиком, сохраняя исходный текст.
+      items:
+        type: string
+        minLength: 1
+      example: [документами, документы]
+
+    DocumentResponse:
+      type: object
+      additionalProperties: false
+      required: [document_id, title, text, matched_words]
+      properties:
+        document_id:
+          $ref: '#/components/schemas/DocumentId'
+        title:
+          type: string
+        text:
+          type: string
+        matched_words:
+          $ref: '#/components/schemas/MatchedWords'
 
     ApiError:
       type: object
@@ -234,6 +292,7 @@ components:
                 - InvalidText
                 - InvalidQuery
                 - InvalidLimit
+                - InvalidDocumentId
                 - DocumentTooLarge
                 - UnsupportedFileType
                 - InternalError

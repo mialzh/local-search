@@ -561,3 +561,68 @@ TEST_CASE_METHOD(SearchEngineFixture,
   store.Remove(largest);
   REQUIRE(engine.AddDocument("next.txt", "gamma filler").document_id == 2);
 }
+
+
+
+TEST_CASE_METHOD(SearchEngineFixture,
+                 "Morphological results expose actual matched word forms",
+                 "[search_engine][morphology][highlight]") {
+  const auto added = engine.AddDocument("forms.txt", "Я работаю с документами.");
+  const auto results = engine.Search("документ", 10);
+  const auto& item = ResultFor(results, added.document_id);
+  REQUIRE(item.matched_words == std::vector<std::string>{"документами"});
+  REQUIRE(item.snippet == "Я работаю с документами.");
+
+  const auto view = engine.GetDocumentWithMatches(added.document_id, "документ");
+  REQUIRE(view.document.text == "Я работаю с документами.");
+  REQUIRE(view.matched_words == item.matched_words);
+}
+
+TEST_CASE_METHOD(SearchEngineFixture,
+                 "Highlight forms preserve original Unicode text and remove duplicates",
+                 "[search_engine][morphology][highlight]") {
+  const std::string text = "🌊 cafe\u0301! ДОКУМЕНТАМИ, документы и документами.";
+  const auto added = engine.AddDocument("unicode.txt", text);
+  const auto view = engine.GetDocumentWithMatches(
+      added.document_id, "документ документами");
+  const std::vector<std::string> expected{"документами", "документы"};
+  REQUIRE(view.document.text == text);
+  REQUIRE(view.matched_words == expected);
+  REQUIRE(ResultFor(engine.Search("документ", 10), added.document_id).matched_words
+          == expected);
+}
+
+TEST_CASE_METHOD(SearchEngineFixture,
+                 "Every matching alternative supplies its actual surface form",
+                 "[search_engine][morphology][highlight]") {
+  const auto added = engine.AddDocument("steel.txt", "Они стали изучать сталь.");
+  const auto view = engine.GetDocumentWithMatches(added.document_id, "стали");
+  const std::vector<std::string> expected{"стали", "сталь"};
+  REQUIRE(view.matched_words == expected);
+}
+
+TEST_CASE_METHOD(SearchEngineFixture,
+                 "Document without a matching query opens with no highlights",
+                 "[search_engine][highlight]") {
+  const auto added = engine.AddDocument("plain.txt", "Я работаю с документами.");
+  for (const auto& query : {"", "!!!", "jdanoffxyz"}) {
+    const auto view = engine.GetDocumentWithMatches(added.document_id, query);
+    REQUIRE(view.document.id == added.document_id);
+    REQUIRE(view.document.text == "Я работаю с документами.");
+    REQUIRE(view.matched_words.empty());
+  }
+}
+
+TEST_CASE_METHOD(SearchEngineFixture,
+                 "English highlight forms survive index restoration",
+                 "[search_engine][morphology][highlight]") {
+  const auto added = engine.AddDocument(
+      "english.txt", "Documents, document and documents.");
+  SearchEngine restored(store);
+  restored.Restore();
+  const auto view = restored.GetDocumentWithMatches(added.document_id, "document");
+  const std::vector<std::string> expected{"document", "documents"};
+  REQUIRE(view.matched_words == expected);
+  REQUIRE(ResultFor(restored.Search("document", 10), added.document_id).matched_words
+          == expected);
+}
