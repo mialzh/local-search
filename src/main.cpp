@@ -1,3 +1,10 @@
+#include "embedding_client.usrv.pb.hpp"
+
+#include <userver/testsuite/testsuite_support.hpp>
+#include <userver/ugrpc/client/client_factory_component.hpp>
+#include <userver/ugrpc/client/component_list.hpp>
+#include <userver/ugrpc/client/simple_client_component.hpp>
+
 #include "components/search_component.hpp"
 #include "http/health_handler.hpp"
 #include "http/search_handler.hpp"
@@ -12,6 +19,11 @@
 int main(int argc, char* argv[]) {
     auto component_list =
         userver::components::MinimalServerComponentList()
+            .Append<userver::components::TestsuiteSupport>()
+            .AppendComponentList(userver::ugrpc::client::MinimalComponentList())
+            .Append<userver::ugrpc::client::ClientFactoryComponent>()
+            .Append<userver::ugrpc::client::SimpleClientComponent<
+                local_search::embedding::v1::EmbeddingServiceClient>>("embedding-client")
             .Append<local_search::SearchComponent>()
             .Append<local_search::http::HealthHandler>()
             .Append<local_search::http::SearchHandler>()

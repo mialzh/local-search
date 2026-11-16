@@ -1,4 +1,5 @@
-#include <vector_index.hpp>
+#include "vector_index.hpp"
+
 #include <unordered_map>
 #include <algorithm>
 #include <stdexcept>

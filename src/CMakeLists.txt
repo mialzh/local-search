@@ -34,6 +34,7 @@ if(BUILD_SERVER)
         main.cpp
         http/health_handler.cpp
         components/search_component.cpp
+        components/grpc_embedder.cpp
         http/api_error.cpp
         http/search_handler.cpp
         http/upload_handler.cpp

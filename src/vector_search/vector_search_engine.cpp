@@ -1,6 +1,8 @@
 #include "vector_search_engine.hpp"
 #include "search/snippet.hpp"
+
 #include <stdexcept>
+#include <utility>
 
 namespace local_search {
     
@@ -90,13 +92,13 @@ void VectorSearchEngine::IndexDocument(DocumentId id, std::string_view text) {
 }
 
 void VectorSearchEngine::Restore() {
-    VectorIndex restored_index;
-    auto documents = store_.LoadAll();
-    for (const auto& document : documents) {
-        IndexDocument(document.id, document.text);
+    VectorSearchEngine restored(store_, embedder_);
+
+    for (const auto& document : store_.LoadAll()) {
+        restored.IndexDocument(document.id, document.text);
     }
 
-    index_ = std::move(restored_index);
+    index_ = std::move(restored.index_);
 }
 
 std::vector<VectorSearchResult> VectorSearchEngine::Search(

@@ -6,6 +6,9 @@ components_manager:
         fs-task-processor:
             worker_threads: 2
 
+    coro_pool:
+        stack_usage_monitor_enabled: false
+
     default_task_processor: main-task-processor
 
     components:
@@ -25,6 +28,19 @@ components_manager:
             path: /health
             method: GET
             task_processor: main-task-processor
+
+        testsuite-support: {}
+                
+        grpc-client-common:
+            blocking-task-processor: fs-task-processor
+        grpc-client-factory: {}
+        grpc-client-middlewares-pipeline: {}
+        grpc-client-logging: {}
+        grpc-client-deadline-propagation: {}
+
+        embedding-client:
+            endpoint: '127.0.0.1:50051'
+            factory-component: grpc-client-factory
 
         search-component:
             data-dir: ./data

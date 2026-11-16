@@ -13,7 +13,10 @@ find_package(LocalSearchMorphology CONFIG REQUIRED)
 
 if(BUILD_SERVER)
     find_package(userver COMPONENTS core grpc REQUIRED)
-    userver_add_grpc_library(embedding_proto PROTOS contracts/embedding.proto)
+    userver_add_grpc_library(embedding_proto
+    SOURCE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/contracts"
+    PROTOS embedding.proto
+)
 endif()
 
 include(CTest)
