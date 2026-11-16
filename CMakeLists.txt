@@ -12,7 +12,8 @@ find_package(nlohmann_json CONFIG REQUIRED)
 find_package(LocalSearchMorphology CONFIG REQUIRED)
 
 if(BUILD_SERVER)
-    find_package(userver COMPONENTS core REQUIRED)
+    find_package(userver COMPONENTS core grpc REQUIRED)
+    userver_add_grpc_library(embedding_proto PROTOS contracts/embedding.proto)
 endif()
 
 include(CTest)

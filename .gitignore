@@ -19,3 +19,8 @@
 *.tmp
 *.swp
 *~
+
+/embedding_service/embedding_pb2.py
+/embedding_service/embedding_pb2_grpc.py
+/embedding_service/__pycache__/
+/build-server/

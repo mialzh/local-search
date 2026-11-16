@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package local_search.embedding.v1;
+
+service EmbeddingService {
+  rpc EmbedQuery(EmbedQueryRequest) returns (Embedding);
+  rpc EmbedPassages(EmbedPassagesRequest) returns (EmbedPassagesResponse);
+}
+
+message EmbedQueryRequest {
+  string query = 1;
+}
+
+message EmbedPassagesRequest {
+  repeated string passages = 1;
+}
+
+message Embedding {
+  repeated float values = 1;
+}
+
+message EmbedPassagesResponse {
+  repeated Embedding embeddings = 1;
+}

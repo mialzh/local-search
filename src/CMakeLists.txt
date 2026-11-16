@@ -8,6 +8,8 @@ add_library(search_core STATIC
     search/snippet.cpp
     storage/document_store.cpp
     search/lemmatizer.cpp
+    vector_search/vector_index.cpp
+    vector_search/vector_search_engine.cpp
 )
 
 target_link_libraries(search_core PRIVATE
@@ -41,6 +43,7 @@ if(BUILD_SERVER)
     target_link_libraries(local_search PRIVATE
         search_core
         userver::core
+        embedding_proto
     )
 
     set_target_properties(local_search PROPERTIES
