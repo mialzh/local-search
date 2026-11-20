@@ -45,6 +45,12 @@ components_manager:
         search-component:
             data-dir: ./data
             fs-task-processor: fs-task-processor
+        
+        handler-vector-search:
+            path: /search/vector
+            method: GET
+            task_processor: main-task-processor
+            request_body_size_log_limit: 0
 
         handler-search:
             path: /search

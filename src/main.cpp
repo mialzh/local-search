@@ -27,6 +27,7 @@ int main(int argc, char* argv[]) {
             .Append<local_search::SearchComponent>()
             .Append<local_search::http::HealthHandler>()
             .Append<local_search::http::SearchHandler>()
+            .Append<local_search::http::VectorSearchHandler>()
             .Append<local_search::http::UploadHandler>()
             .Append<local_search::http::OpenDocumentHandler>()
             .Append<userver::components::FsCache>("fs-cache-web")

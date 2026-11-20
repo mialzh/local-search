@@ -39,6 +39,7 @@ if(BUILD_SERVER)
         http/search_handler.cpp
         http/upload_handler.cpp
         http/open_document_handler.cpp
+        http/vector_search_handler.cpp
     )
 
     target_link_libraries(local_search PRIVATE

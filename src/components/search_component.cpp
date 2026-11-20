@@ -29,7 +29,13 @@ SearchComponent::SearchComponent(
               return DocumentStore(std::filesystem::path(directory));
           }
       ).Get()),
-      engine_(store_) {
+      engine_(store_),
+      embedder_(
+          context.FindComponent<EmbeddingClientComponent>(
+              "embedding-client"
+          ).GetClient()
+      ),
+      vector_engine_(store_, embedder_){
     userver::utils::Async(
         fs_task_processor_,
         "restore-search-index",
@@ -37,13 +43,14 @@ SearchComponent::SearchComponent(
     ).Get();
 }
 
-AddedDocument SearchComponent::AddDocument(std::string title, std::string text) {
+AddedDocument SearchComponent::AddDocument(
+    std::string title, std::string text
+) {
     return userver::utils::Async(
         fs_task_processor_,
         "add-document",
         [this, title = std::move(title), text = std::move(text)]() mutable {
-            // The current core does not reject empty tokens before writing.
-            // Validate here so a rejected HTTP upload never reaches storage.
+            // Validate before writing anything to storage.
             if (TextProcessor::Process(text).empty()) {
                 throw ValidationError(
                     "InvalidText", "Document must contain at least one word"
@@ -51,7 +58,20 @@ AddedDocument SearchComponent::AddDocument(std::string title, std::string text) 
             }
 
             std::lock_guard lock(mutex_);
-            return engine_.AddDocument(std::move(title), std::move(text));
+
+            // Keep text available for vector indexing.
+            auto added = engine_.AddDocument(std::move(title), text);
+
+            try {
+                vector_engine_.IndexDocument(added.document_id, text);
+            } catch (...) {
+                // Roll back the document and rebuild the BM25 index.
+                store_.Remove(added.document_id);
+                engine_.Restore();
+                throw;
+            }
+
+            return added;
         }
     ).Get();
 }
@@ -69,13 +89,39 @@ std::vector<SearchResult> SearchComponent::Search(
     ).Get();
 }
 
+std::vector<VectorSearchResult> SearchComponent::SearchVector(
+    std::string query, std::size_t limit
+) {
+    return userver::utils::Async(
+        fs_task_processor_,
+        "vector-search-documents",
+        [this, query = std::move(query), limit] {
+            if (limit == 0 || limit > 100) {
+                throw std::invalid_argument(
+                    "Limit must be between 1 and 100"
+                );
+            }
+
+            if (TextProcessor::Process(query).empty()) {
+                throw ValidationError(
+                    "InvalidQuery",
+                    "Query must contain at least one word"
+                );
+            }
+
+            std::lock_guard lock(mutex_);
+            return vector_engine_.Search(query, limit);
+        }
+    ).Get();
+}
+
 Document SearchComponent::GetDocument(DocumentId id) {
     return userver::utils::Async(
         fs_task_processor_,
         "get-document",
         [this, id] {
             std::lock_guard lock(mutex_);
-            return engine_.GetDocument(id);
+            return store_.Get(id);
         }
     ).Get();
 }
