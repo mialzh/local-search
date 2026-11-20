@@ -31,8 +31,6 @@ class SearchComponent final : public userver::components::ComponentBase {
 public:
     static constexpr std::string_view kName = "search-component";
 
-    std::vector<VectorSearchResult> SearchVector(
-    std::string query, std::size_t limit);
 
     SearchComponent(
         const userver::components::ComponentConfig& config,

@@ -198,3 +198,60 @@ test("invalid document highlight queries never reach the server", async () => {
     await assert.rejects(getDocument(1, undefined, query), { code: "InvalidQuery" });
   }
 });
+
+test("vector search uses its endpoint and accepts distance without score", async () => {
+  const items = [
+    { document_id: 2, title: "memory.txt", snippet: "Управление памятью", distance: 0.12 },
+    { document_id: 1, title: "notes.txt", snippet: "RAII", distance: 0.31 },
+  ];
+  globalThis.fetch = async (path, options) => {
+    const url = new URL(path, "http://localhost:8080");
+    assert.equal(url.pathname, "/search/vector");
+    assert.equal(url.searchParams.get("q"), "C++ & память");
+    assert.equal(url.searchParams.get("limit"), "5");
+    assert.equal(url.searchParams.size, 2);
+    assert.equal(options.cache, "no-store");
+    return json({ results: items });
+  };
+  assert.deepEqual(await searchDocuments("C++ & память", 5, undefined, "vector"), items);
+});
+
+test("vector search rejects wrong metrics and accepts an empty index", async () => {
+  for (const item of [result, { ...result, distance: "0.1" }, { ...result, distance: null }]) {
+    globalThis.fetch = async () => json({ results: [item] });
+    await assert.rejects(searchDocuments("word", 10, undefined, "vector"), { name: "ApiError", status: 200 });
+  }
+  globalThis.fetch = async () => json({ results: [] });
+  assert.deepEqual(await searchDocuments("word", 10, undefined, "vector"), []);
+});
+
+test("unknown search modes are rejected before making a request", async () => {
+  globalThis.fetch = () => assert.fail("Unexpected request");
+  await assert.rejects(searchDocuments("word", 10, undefined, "hybrid"), { code: "InvalidSearchMode" });
+});
+
+test("embedding service errors explain how to switch to word search", async () => {
+  for (const status of [503, 504]) {
+    globalThis.fetch = async () => json({ error: { code: "InternalError", message: "Embedding unavailable" } }, status);
+    await assert.rejects(searchDocuments("word", 10, undefined, "vector"), (error) => {
+      assert.equal(error.status, status);
+      assert.equal(error.network, false);
+      assert.match(error.message, /Поиск по смыслу/);
+      assert.match(error.message, /По словам/);
+      return true;
+    });
+  }
+});
+
+test("vector search can be aborted when the user changes modes", async () => {
+  globalThis.fetch = (_path, { signal }) => new Promise((_resolve, reject) => {
+    const abort = () => reject(new DOMException("Cancelled", "AbortError"));
+    if (signal.aborted) abort();
+    else signal.addEventListener("abort", abort, { once: true });
+  });
+  const controller = new AbortController();
+  const pending = searchDocuments("word", 10, controller.signal, "vector");
+  controller.abort();
+  await assert.rejects(pending, { name: "AbortError" });
+});
+

@@ -1,4 +1,4 @@
-import { ApiError, checkHealth, queryWords, searchDocuments, uploadDocument } from "./api.mjs?v=2.9.1";
+import { ApiError, checkHealth, queryWords, searchDocuments, uploadDocument } from "./api.mjs?v=3.0.0";
 import { openUploadDialog } from "./workspace.mjs?v=2.9.0";
 
 const $ = (id) => document.getElementById(id);
@@ -19,6 +19,26 @@ let batchProcessed = 0;
 let batchAdded = 0;
 let uploadLabelTimer;
 const uploadQueue = [];
+
+function searchMode() {
+  return $("search-form").elements.namedItem("mode").value;
+}
+
+function updateModeHint() {
+  const semantic = searchMode() === "vector";
+  $("search-mode-hint").textContent = semantic
+    ? "Близкие по смыслу фрагменты" : "Совпадения слов и их форм";
+  query.placeholder = semantic ? "Опиши, что хочешь найти" : "Поиск по документам";
+}
+
+function updateSearchUrl(text, mode) {
+  const url = new URL(window.location.href);
+  if (text) url.searchParams.set("q", text);
+  else url.searchParams.delete("q");
+  url.searchParams.set("limit", limit.value);
+  url.searchParams.set("mode", mode);
+  history.replaceState(history.state, "", url);
+}
 
 function icon(name, extraClass = "") {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -82,10 +102,10 @@ function showEmpty(title, message) {
   results.replaceChildren(empty);
 }
 
-function showResults(items, text, milliseconds) {
+function showResults(items, text, milliseconds, mode) {
   results.replaceChildren();
   for (const item of items) {
-    const words = queryWords(text, item.matched_words);
+    const words = mode === "vector" ? new Set() : queryWords(text, item.matched_words);
     const article = element("article", "result-item");
     const fileIcon = element("div", "result-icon");
     fileIcon.append(icon("file"));
@@ -94,7 +114,7 @@ function showResults(items, text, milliseconds) {
     const heading = element("h3", "result-title");
     const link = element("a", "result-link", item.title);
     const documentUrl = new URL("/document.html", window.location.origin);
-    documentUrl.search = new URLSearchParams({ id: String(item.document_id), q: text, limit: limit.value });
+    documentUrl.search = new URLSearchParams({ id: String(item.document_id), q: text, limit: limit.value, mode });
     link.href = documentUrl.pathname + documentUrl.search;
     link.target = "_blank";
     link.rel = "noopener";
@@ -110,9 +130,11 @@ function showResults(items, text, milliseconds) {
   $("results-title").textContent = "Результаты поиска";
   $("results-meta").textContent = `${number.format(items.length)} в выдаче · ${number.format(Math.round(milliseconds))} мс`;
   $("results-meta").title = "Время запроса вместе с передачей данных. Выдача ограничена выбранным количеством.";
-  $("results-status").textContent = `По запросу «${text}» получено результатов: ${items.length}.`;
+  const modeLabel = mode === "vector" ? "По смыслу" : "По словам";
+  $("results-status").textContent = `${modeLabel}. По запросу «${text}» получено результатов: ${items.length}.`;
   if (!items.length) {
-    showEmpty("Совпадений пока нет", "Попробуй другие слова или добавь документ с нужным текстом.");
+    showEmpty(mode === "vector" ? "Пока ничего не найдено" : "Совпадений пока нет",
+      mode === "vector" ? "Добавь документы или попробуй другой запрос." : "Попробуй другие слова или добавь документ с нужным текстом.");
   }
 }
 
@@ -123,6 +145,7 @@ function clearQueryFeedback() {
 
 async function runSearch() {
   const text = query.value.trim();
+  const mode = searchMode();
   if (!text) {
     query.focus();
     query.setAttribute("aria-invalid", "true");
@@ -135,6 +158,7 @@ async function runSearch() {
     return;
   }
   clearQueryFeedback();
+  updateSearchUrl(text, mode);
   searchController?.abort();
   const controller = new AbortController();
   searchController = controller;
@@ -147,15 +171,16 @@ async function runSearch() {
   $("results-meta").textContent = "";
   $("results-status").textContent = "Поиск выполняется.";
   const loading = element("div", "loading-state");
-  loading.append(element("span", "spinner"), document.createTextNode("Ищем совпадения…"));
+  loading.append(element("span", "spinner"), document.createTextNode(
+    mode === "vector" ? "Ищем по смыслу…" : "Ищем совпадения…"));
   results.replaceChildren(loading);
   const start = performance.now();
   try {
-    const items = await searchDocuments(text, Number(limit.value), controller.signal);
+    const items = await searchDocuments(text, Number(limit.value), controller.signal, mode);
     if (version !== searchVersion) return;
     setConnection("online");
     lastQuery = text;
-    showResults(items, text, performance.now() - start);
+    showResults(items, text, performance.now() - start, mode);
   } catch (error) {
     if (version !== searchVersion || controller.signal.aborted) return;
     if (error.network) setConnection("offline");
@@ -194,7 +219,7 @@ async function drainUploads() {
         const welcome = $("welcome");
         if (welcome) {
           welcome.querySelector("h3").textContent = "Документы добавлены";
-          welcome.querySelector("p").textContent = "Введи слова из текста в строку поиска.";
+          welcome.querySelector("p").textContent = "Введи запрос и выбери подходящий режим поиска.";
         }
       } catch (error) {
         if (error.network) setConnection("offline");
@@ -252,6 +277,27 @@ $("search-form").addEventListener("submit", (event) => {
 limit.addEventListener("change", () => {
   if (lastQuery !== null && query.value.trim()) void runSearch();
 });
+for (const radio of document.querySelectorAll('input[name="mode"]')) {
+  radio.addEventListener("change", () => {
+    updateModeHint();
+    $("search-error").hidden = true;
+    clearQueryFeedback();
+    if (query.value.trim()) {
+      void runSearch();
+    } else {
+      searchController?.abort();
+      searchVersion++;
+      lastQuery = null;
+      $("results-section").setAttribute("aria-busy", "false");
+      $("search-button").removeAttribute("aria-busy");
+      $("results-title").textContent = "Результаты";
+      $("results-meta").textContent = "";
+      $("results-status").textContent = "Режим поиска изменён.";
+      showEmpty("Результаты появятся здесь", "Введи запрос или добавь документы.");
+      if (window.location.protocol !== "file:") updateSearchUrl("", searchMode());
+    }
+  });
+}
 $("choose-files").addEventListener("click", () => input.click());
 input.addEventListener("change", () => {
   queueFiles(Array.from(input.files));
@@ -294,6 +340,11 @@ if (window.location.protocol === "file:") {
 } else {
   void refreshConnection();
   const initialParams = new URLSearchParams(window.location.search);
+  const initialMode = initialParams.get("mode");
+  if (initialMode === "keyword" || initialMode === "vector") {
+    $("search-form").elements.namedItem("mode").value = initialMode;
+  }
+  updateModeHint();
   const initialLimit = initialParams.get("limit");
   if (Array.from(limit.options).some((option) => option.value === initialLimit)) limit.value = initialLimit;
   const initialQuery = initialParams.get("q");
@@ -302,3 +353,4 @@ if (window.location.protocol === "file:") {
     void runSearch();
   }
 }
+

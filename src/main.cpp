@@ -4,12 +4,13 @@
 #include <userver/ugrpc/client/client_factory_component.hpp>
 #include <userver/ugrpc/client/component_list.hpp>
 #include <userver/ugrpc/client/simple_client_component.hpp>
-
+#include "http/vector_search_handler.hpp"
 #include "components/search_component.hpp"
 #include "http/health_handler.hpp"
 #include "http/search_handler.hpp"
 #include "http/upload_handler.hpp"
 #include "http/open_document_handler.hpp"
+#include "http/vector_search_handler.hpp"
 
 #include <userver/components/fs_cache.hpp>
 #include <userver/components/minimal_server_component_list.hpp>

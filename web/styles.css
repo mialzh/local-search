@@ -139,6 +139,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .search-submit:hover { background: var(--accent-hover); transform: scale(1.04); }
 .search-submit:active { transform: scale(.98); }
 .search-submit[aria-busy="true"] .icon { animation: search-bounce .8s ease-in-out infinite alternate; }
+.search-options { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem 1rem; margin-top: .75rem; }
+.search-modes { display: inline-flex; flex-shrink: 0; min-width: 0; margin: 0; padding: .1875rem; border: 1px solid var(--line); border-radius: .6875rem; background: var(--control); }
+.search-mode { position: relative; cursor: pointer; }
+.search-mode > span { display: block; padding: .4375rem .8125rem; border: 1px solid transparent; border-radius: .5rem; color: var(--secondary); font-size: .625rem; line-height: 1.4; white-space: nowrap; transition: color .16s, background .16s, box-shadow .16s; }
+.search-mode:hover > span { color: var(--text); }
+.search-mode input:checked + span { border-color: var(--line-control); color: var(--text); background: var(--surface); box-shadow: 0 1px 3px var(--shadow-small); }
+.search-mode input:focus-visible + span { outline: .1875rem solid var(--focus); outline-offset: .125rem; }
+.search-mode-hint { margin: 0; color: var(--muted); font-size: .625rem; line-height: 1.6; }
 .notice { padding: 0.8125rem 1rem; margin: 0 0 1.25rem; color: var(--notice-text); background: var(--notice-bg); border: 0.0625rem solid var(--notice-border); border-radius: 0.75rem; font-size: 0.75rem; line-height: 1.7; }
 .notice.error { color: var(--error-text); background: var(--error-bg); border-color: var(--error-border); }
 .results-section { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border: 0.0625rem solid var(--line); border-radius: 1.125rem; background: var(--surface); box-shadow: 0 0.125rem 0.3125rem var(--shadow-surface); }
@@ -354,3 +362,4 @@ body.document-page { --reader-mark-bg: #e8f0fa; --reader-highlight-ink: #607e9e;
   .document-page .brand { font-size: .95rem; }
   .document-header-tools .reader-highlight-toggle { margin-right: 0; }
 }
+

@@ -39,7 +39,10 @@ SearchComponent::SearchComponent(
     userver::utils::Async(
         fs_task_processor_,
         "restore-search-index",
-        [this] { engine_.Restore(); }
+        [this] {
+            engine_.Restore();
+            vector_engine_.Restore();
+        }
     ).Get();
 }
 

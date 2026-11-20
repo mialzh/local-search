@@ -103,13 +103,28 @@ function validMatchedWords(words) {
     (Array.isArray(words) && words.every((word) => typeof word === "string"));
 }
 
-export async function searchDocuments(query, limit, signal) {
+export async function searchDocuments(query, limit, signal, mode = "keyword") {
   validateQuery(query, limit);
-  const body = await request(`/search?${new URLSearchParams({ q: query, limit: String(limit) })}`, { signal });
+  if (mode !== "keyword" && mode !== "vector") {
+    throw new ApiError("Выбери режим поиска.", { code: "InvalidSearchMode" });
+  }
+  const path = mode === "vector" ? "/search/vector" : "/search";
+  const metric = mode === "vector" ? "distance" : "score";
+  let body;
+  try {
+    body = await request(`${path}?${new URLSearchParams({ q: query, limit: String(limit) })}`, { signal });
+  } catch (error) {
+    if (mode === "vector" && error instanceof ApiError && [503, 504].includes(error.status)) {
+      throw new ApiError("Поиск по смыслу временно недоступен. Попробуй ещё раз или выбери «По словам».", {
+        code: error.code, status: error.status,
+      });
+    }
+    throw error;
+  }
   if (!Array.isArray(body?.results) || body.results.some((item) =>
     !item || !Number.isSafeInteger(item.document_id) || item.document_id <= 0 ||
     typeof item.title !== "string" || typeof item.snippet !== "string" ||
-    typeof item.score !== "number" || !Number.isFinite(item.score) ||
+    typeof item[metric] !== "number" || !Number.isFinite(item[metric]) ||
     !validMatchedWords(item.matched_words))) {
     throw new ApiError("Сервер вернул неправильный формат результатов.", { status: 200 });
   }
@@ -176,3 +191,4 @@ export function queryWords(query, matchedWords) {
   const source = matchedWords === undefined ? query : matchedWords.join(" ");
   return new Set(source.normalize("NFC").toLowerCase().normalize("NFC").match(/[\p{L}\p{Nd}][\p{L}\p{Nd}\p{M}]*/gu) ?? []);
 }
+

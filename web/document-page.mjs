@@ -1,4 +1,4 @@
-import { getDocument, queryWords } from "./api.mjs?v=2.9.1";
+import { getDocument, queryWords } from "./api.mjs?v=3.0.0";
 import "./appearance.mjs?v=2.9.0";
 
 // Every document opens at its beginning, including reloads and old match links.
@@ -14,6 +14,7 @@ const params = new URLSearchParams(window.location.search);
 const rawId = params.get("id") || "";
 const id = /^[1-9]\d*$/.test(rawId) ? Number(rawId) : NaN;
 const currentQuery = params.get("q") || "";
+const searchMode = params.get("mode") === "vector" ? "vector" : "keyword";
 const number = new Intl.NumberFormat("ru-RU");
 const plurals = new Intl.PluralRules("ru-RU");
 const MAX_MARKS = 2000;
@@ -26,6 +27,7 @@ let highlightsEnabled = false;
 
 const returnParams = new URLSearchParams();
 if (currentQuery) returnParams.set("q", currentQuery);
+returnParams.set("mode", searchMode);
 const searchLimit = params.get("limit");
 if (["5", "10", "20", "50", "100"].includes(searchLimit)) returnParams.set("limit", searchLimit);
 const returnUrl = "/" + (returnParams.size ? `?${returnParams}` : "");
@@ -88,7 +90,7 @@ async function loadDocument() {
   markedCount = 0;
   documentData = undefined;
   try {
-    const result = await getDocument(id, signal, currentQuery);
+    const result = await getDocument(id, signal, searchMode === "vector" ? "" : currentQuery);
     if (signal.aborted || version !== generation) return;
     documentData = result;
     const title = result.title || "Без названия";
@@ -96,7 +98,7 @@ async function loadDocument() {
     document.title = `${title} — jdanoff search`;
     content.hidden = false;
     $("document-loading").hidden = true;
-    renderText(result.text, result.matched_words);
+    renderText(result.text, searchMode === "vector" ? [] : result.matched_words);
     $("download-document").disabled = false;
   } catch (error) {
     if (signal.aborted || version !== generation) return;
@@ -135,3 +137,4 @@ window.addEventListener("pageshow", (event) => {
   if (event.persisted && !documentData) void loadDocument();
 });
 void loadDocument();
+

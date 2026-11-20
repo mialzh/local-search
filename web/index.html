@@ -15,8 +15,8 @@
   </script>
   <title>jdanoff search</title>
   <link rel="icon" href="/favicon.svg?v=2.9.0" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css?v=2.9.0">
-  <script type="module" src="/app.mjs?v=2.9.1"></script>
+  <link rel="stylesheet" href="/styles.css?v=3.0.0">
+  <script type="module" src="/app.mjs?v=3.0.0"></script>
 </head>
 <body>
   <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -53,6 +53,14 @@
           <input id="query" name="q" type="search" placeholder="Поиск по документам" autocomplete="off" required enterkeyhint="search">
           <button class="search-submit" id="search-button" type="submit" title="Найти"><span class="sr-only">Найти</span><svg class="icon"><use href="#i-arrow"/></svg></button>
         </div>
+        <div class="search-options">
+          <fieldset class="search-modes" aria-describedby="search-mode-hint">
+            <legend class="sr-only">Режим поиска</legend>
+            <label class="search-mode"><input class="sr-only" type="radio" name="mode" value="keyword" checked><span>По словам</span></label>
+            <label class="search-mode"><input class="sr-only" type="radio" name="mode" value="vector"><span>По смыслу</span></label>
+          </fieldset>
+          <p id="search-mode-hint" class="search-mode-hint">Совпадения слов и их форм</p>
+        </div>
       </form>
       <div id="search-error" class="notice error" role="alert" hidden></div>
       <div id="connection-notice" class="notice" role="status" hidden>Нет связи с сервером. Проверь, что он запущен.</div>
@@ -76,3 +84,4 @@
   <noscript><p class="noscript">Включи JavaScript для загрузки документов и поиска.</p></noscript>
 </body>
 </html>
+
